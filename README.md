@@ -1,53 +1,247 @@
-# Welcome to your Lovable project
+# Whizunik Factoring
 
-## Project info
+A professional factoring operations portal with separate backend and frontend applications.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🏗️ Project Structure
 
-## How can I edit this code?
+```
 
-There are several ways of editing your application.
+whizunik-factoring/
+├── frontend/          # React + TypeScript + Vite frontend
+├── backend/           # Node.js + Express + TypeScript backend
+├── package.json       # Root package.json for monorepo management
+└── README.md         # This file
+```
 
-**Use Lovable**
+## 🚀 Quick Start
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
 
-Changes made via Lovable will be committed automatically to this repo.
+### Installation & Setup
 
-**Use your preferred IDE**
+1. **Install all dependencies:**
+```bash
+npm run install:all
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+2. **Run both frontend and backend in development mode:**
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+This will start:
+- Backend API server on `http://localhost:3000`
+- Frontend development server on `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Individual Commands
 
-**Use GitHub Codespaces**
+#### Frontend Only
+```bash
+# Development
+npm run dev:frontend
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+# Build for production
+npm run build:frontend
+
+# Preview production build
+npm run start:frontend
+```
+
+#### Backend Only
+```bash
+# Development with hot reload
+npm run dev:backend
+
+# Build TypeScript
+npm run build:backend
+
+# Start production server
+npm run start:backend
+```
+
+## 🔐 Login Credentials
+
+- **Email:** `sankalp@whizunik.com`
+- **Password:** `Sankalp@8jan1983`
+
+## 📁 Directory Details
+
+### Frontend (`/frontend`)
+- **Framework:** React 18 + TypeScript + Vite
+- **UI Library:** Tailwind CSS + shadcn/ui components
+- **State Management:** React Context + React Query
+- **Authentication:** JWT-based auth with protected routes
+- **Features:** Dashboard, Entity Management, Treasury Operations
+
+### Backend (`/backend`)
+- **Framework:** Node.js + Express + TypeScript
+- **Database:** MongoDB with Mongoose ODM
+- **Authentication:** JWT tokens
+- **Security:** Helmet, CORS, Rate limiting
+- **Logging:** Winston with audit trails
+- **Features:** RESTful API, User management, Entity CRUD, Transaction processing
+
+## 🛠️ Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start both frontend and backend in development |
+| `npm run build` | Build both applications for production |
+| `npm run start` | Start both applications in production mode |
+| `npm run clean` | Clean all node_modules and build directories |
+| `npm run install:all` | Install dependencies for all applications |
+
+## 🔧 Development Workflow
+
+1. **Start Development Servers:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Frontend Development:**
+   - Navigate to `http://localhost:8080`
+   - Login with provided credentials
+   - Hot reload enabled for instant feedback
+
+3. **Backend API Development:**
+   - API available at `http://localhost:3000`
+   - Auto-restart on file changes
+   - MongoDB connection required
+
+4. **Database Setup:**
+   - Install MongoDB locally or use MongoDB Atlas
+   - Update connection string in backend/.env
+   - Database will be created automatically
+
+## 🚀 Production Deployment
+
+1. **Build applications:**
+   ```bash
+   npm run build
+   ```
+
+2. **Start production servers:**
+   ```bash
+   npm run start
+   ```
+
+## 🔐 Environment Variables
+
+### Frontend (`/frontend/.env`)
+```
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+### Backend (`/backend/.env`)
+```
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/whizunik-factoring
+JWT_SECRET=your-super-secret-jwt-key
+NODE_ENV=development
+```
+
+## 📊 Technology Stack
+
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- React Router
+- React Query
+- Lucide Icons
+
+### Backend
+- Node.js
+- Express.js
+- TypeScript
+- MongoDB
+- Mongoose
+- JWT Authentication
+- Winston Logging
+- Helmet Security
+- CORS Support
+
+## 🎯 Features
+
+### ✅ Completed
+- JWT Authentication system
+- Protected routes
+- Professional UI with financial theming
+- Entity management (Suppliers/Buyers)
+- Treasury operations dashboard
+- Real-time KPI monitoring
+- Comprehensive audit logging
+- Role-based access control
+
+### 🚧 In Development
+- Real-time notifications
+- Advanced reporting
+- Document management
+- Payment processing integration
+- Advanced analytics
+
+## 📞 Support
+
+For technical support or questions about the Whizunik Factoring platform, please contact the development team.
+
+---
+
+© 2025 Whizunik Factoring. All rights reserved.
+- **Tailwind CSS** with custom financial design system
+- **Radix UI** components with shadcn/ui
+- **Lucide React** icons
+- **React Router** for navigation
+- **Recharts** for financial data visualization
+
+### Backend Stack
+- **Node.js** + **Express** + **TypeScript**
+- **MongoDB** with **Mongoose** ODM
+- **JWT** authentication with role-based permissions
+- **Winston** logging with financial audit trails
+- **Helmet** + **CORS** + rate limiting for security
+
+## 🚀 Getting Started
+
+### Prerequisites
+```bash
+Node.js >= 18.0.0
+MongoDB >= 6.0
+npm or yarn
+```
+
+### Installation
+```bash
+# Clone the repository
+git clone <YOUR_GIT_URL>
+
+# Navigate to project directory
+cd tradeflow-nexus
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Start development servers
+npm run dev:full  # Starts both frontend and backend
+# OR run separately:
+npm run dev      # Frontend (http://localhost:5173)
+npm run server:dev  # Backend (http://localhost:3001)
+```
+
+### Key Environment Variables
+```env
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/tradeflow-nexus
+JWT_SECRET=your-secure-secret-key
+FRONTEND_URL=http://localhost:5173
+```
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
