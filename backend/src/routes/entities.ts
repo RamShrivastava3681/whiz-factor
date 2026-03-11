@@ -1,80 +1,30 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { broadcastNotification } from '../index';
+import { EntityModel, IEntity } from '../models/schemas';
+
+// Mock data as fallback
+import { mockBuyers, mockSuppliers } from '../../mockData';
 
 const router = express.Router();
 
-// In-memory storage for entities (until database is implemented)
-const entities: any[] = [
-  // Add the supplier you created earlier for testing
-  {
-    id: '1767938185723',
-    entityId: 'SUPPLIER-185723',
-    name: 'Ram Shrivastava',
-    type: 'supplier',
-    status: 'active',
-    riskCategory: 'medium',
-    riskScore: 74,
-    contactEmail: 'ramshrivastava304@gmail.com',
-    phone: '+918604996520',
-    address: 'C-822, 11th Avenue, Gaur City-2',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    country: 'India',
-    pincode: '201301',
-    contactPersonName: 'Ram Shrivastava',
-    contactPersonDesignation: 'Ram Shrivastava',
-    contactPersonEmail: 'ramshri860499@gmail.com',
-    contactPersonPhone: '+918604996520',
-    creditLimit: 10000000,
-    totalLimitSanctioned: 10000000,
-    usedLimit: 0,
-    usedCredit: 0,
-    utilizedLimit: 0,
-    availableLimit: 10000000,
-    email: 'ramshrivastava304@gmail.com',
-    advanceRate: '80',
-    gracePeriod: '5',
-    transactionFees: {
-      days0to30: '2.5',
-      days31to60: '3.0',
-      days61to90: '3.5',
-      days91to120: '4.0',
-      days121to150: '4.5'
-    },
-    feeDeductionMethod: 'from_advance',
-    feeChargeMethod: 'face_value',
-    feeTimingMethod: 'prorated_advance',
-    noaRequired: false,
-    collateralTaken: false,
-    lateFees: '1',
-    lateFeesFrequency: 'monthly',
-    lateFeesCalculationBase: 'advance',
-    lateFeesCalculationMethod: 'prorated',
-    processingFees: '1000',
-    factoringFees: '5',
-    setupFee: '2.5',
-    setupFeePaymentMethod: 'one_time',
-    otherFees: '',
-    notes: '',
-    beneficiary: 'asdfghj',
-    bank: 'wedcv',
-    branch: 'BCA',
-    ifscCode: '123456yh',
-    accountNumber: '1234567u',
-    swiftCode: '2345yuj',
-    correspondentBank: '234thm',
-    currency: 'USD',
-    bicSwiftCode: '',
-    additionalAccDetail: '',
-    agreementFrameworkDocument: {},
-    createdAt: '2026-01-09T05:56:25.723Z',
-    updatedAt: '2026-01-09T05:56:25.723Z'
-  }
-];
+// Combine mock buyers and suppliers as entities
+const mockEntities = [...mockBuyers, ...mockSuppliers];
 
 // Get all entities
 router.get('/', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB not connected, using mock data');
+      return res.json({
+        success: true,
+        message: 'Entities retrieved successfully (mock data)',
+        data: mockEntities
+      });
+    }
+
+    const entities = await EntityModel.find().sort({ createdAt: -1 });
     res.json({
       success: true,
       message: 'Entities retrieved successfully',
@@ -82,9 +32,11 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Get entities error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
+    // Fallback to mock data on error
+    res.json({
+      success: true,
+      message: 'Entities retrieved successfully (fallback to mock data)',
+      data: mockEntities
     });
   }
 });
@@ -94,7 +46,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const entity = entities.find(e => e.id === id);
+    const entity = await EntityModel.findById(id);
     
     if (!entity) {
       return res.status(404).json({
@@ -120,7 +72,28 @@ router.get('/:id', async (req, res) => {
 // Get buyers only
 router.get('/buyers/list', async (req, res) => {
   try {
-    const buyers = entities.filter(entity => entity.type === 'buyer');
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB not connected, using mock buyer data');
+      return res.json({
+        success: true,
+        message: 'Buyers retrieved successfully (mock data)',
+        data: mockBuyers
+      });
+    }
+
+    const buyers = await EntityModel.find({ type: 'buyer' }).sort({ createdAt: -1 });
+    
+    // If no buyers found in database, fallback to mock data
+    if (!buyers || buyers.length === 0) {
+      console.warn('No buyers found in database, using mock data');
+      return res.json({
+        success: true,
+        message: 'Buyers retrieved successfully (fallback to mock data)',
+        data: mockBuyers
+      });
+    }
+    
     res.json({
       success: true,
       message: 'Buyers retrieved successfully',
@@ -128,9 +101,11 @@ router.get('/buyers/list', async (req, res) => {
     });
   } catch (error) {
     console.error('Get buyers error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
+    // Fallback to mock data on error
+    res.json({
+      success: true,
+      message: 'Buyers retrieved successfully (fallback to mock data)',
+      data: mockBuyers
     });
   }
 });
@@ -138,7 +113,28 @@ router.get('/buyers/list', async (req, res) => {
 // Get suppliers only
 router.get('/suppliers/list', async (req, res) => {
   try {
-    const suppliers = entities.filter(entity => entity.type === 'supplier');
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB not connected, using mock supplier data');
+      return res.json({
+        success: true,
+        message: 'Suppliers retrieved successfully (mock data)',
+        data: mockSuppliers
+      });
+    }
+
+    const suppliers = await EntityModel.find({ type: 'supplier' }).sort({ createdAt: -1 });
+    
+    // If no suppliers found in database, fallback to mock data
+    if (!suppliers || suppliers.length === 0) {
+      console.warn('No suppliers found in database, using mock data');
+      return res.json({
+        success: true,
+        message: 'Suppliers retrieved successfully (fallback to mock data)',
+        data: mockSuppliers
+      });
+    }
+    
     res.json({
       success: true,
       message: 'Suppliers retrieved successfully',
@@ -146,6 +142,35 @@ router.get('/suppliers/list', async (req, res) => {
     });
   } catch (error) {
     console.error('Get suppliers error:', error);
+    // Fallback to mock data on error
+    res.json({
+      success: true,
+      message: 'Suppliers retrieved successfully (fallback to mock data)',
+      data: mockSuppliers
+    });
+  }
+});
+
+// Get specific supplier by ID
+router.get('/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplier = await EntityModel.findById(id).where('type').equals('supplier');
+    
+    if (!supplier) {
+      return res.status(404).json({
+        success: false,
+        message: 'Supplier not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Supplier retrieved successfully',
+      data: supplier
+    });
+  } catch (error) {
+    console.error('Get supplier error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -158,9 +183,16 @@ router.post('/', async (req, res) => {
   try {
     const entityData = req.body;
     
+    // Calculate total credit limit from supplier limits (for buyers)
+    let totalCreditLimit = 0;
+    if (entityData.type === 'buyer' && entityData.supplierLimits && Array.isArray(entityData.supplierLimits)) {
+      totalCreditLimit = entityData.supplierLimits.reduce((sum, sl) => {
+        return sum + (typeof sl.transactionLimit === 'number' ? sl.transactionLimit : parseFloat(sl.transactionLimit) || 0);
+      }, 0);
+    }
+    
     // Create new entity with generated ID and timestamps
-    const newEntity = {
-      id: Date.now().toString(),
+    const newEntity = new EntityModel({
       entityId: `${entityData.type?.toUpperCase() || 'ENT'}-${Date.now().toString().slice(-6)}`,
       name: entityData.name,
       type: entityData.type, // 'supplier' or 'buyer'
@@ -184,30 +216,68 @@ router.post('/', async (req, res) => {
       contactPersonPhone: entityData.contactPersonPhone,
       
       // Financial information
-      creditLimit: entityData.totalLimitSanctioned || entityData.creditLimit || 0,
-      totalLimitSanctioned: entityData.totalLimitSanctioned || 0,
+      creditLimit: totalCreditLimit || entityData.totalLimitSanctioned || entityData.creditLimit || 0,
+      totalLimitSanctioned: totalCreditLimit || entityData.totalLimitSanctioned || 0,
       usedLimit: 0, // For suppliers
       usedCredit: 0, // For buyers
       utilizedLimit: 0,
-      availableLimit: entityData.totalLimitSanctioned || entityData.creditLimit || 0,
+      availableLimit: totalCreditLimit || entityData.totalLimitSanctioned || entityData.creditLimit || 0,
+      
+      // Advance and fee configuration (for suppliers)
+      advanceRate: entityData.advanceRate || '80',
+      gracePeriod: entityData.gracePeriod || '5',
+      transactionFees: entityData.transactionFees || {
+        days0to30: entityData.days0to30 || '2.5',
+        days31to60: entityData.days31to60 || '3.0',
+        days61to90: entityData.days61to90 || '3.5',
+        days91to120: entityData.days91to120 || '4.0',
+        days121to150: entityData.days121to150 || '4.5'
+      },
+      feeDeductionMethod: entityData.feeDeductionMethod || 'from_advance',
+      feeChargeMethod: entityData.feeChargeMethod || 'face_value',
+      feeTimingMethod: entityData.feeTimingMethod || 'prorated_advance',
+      noaRequired: entityData.noaRequired || false,
+      collateralTaken: entityData.collateralTaken || false,
+      
+      // Fee structure from supplier form
+      processingFees: parseFloat(entityData.processingFees) || 0,
+      factoringFees: parseFloat(entityData.factoringFees) || 0,
+      setupFee: parseFloat(entityData.setupFee) || 0,
+      setupFeePaymentMethod: entityData.setupFeePaymentMethod || 'one_time',
+      lateFees: entityData.lateFees || '1',
+      lateFeesFrequency: entityData.lateFeesFrequency || 'monthly',
+      
+      // Supplier relationships (for buyers)
+      supplierLimits: entityData.supplierLimits || [],
+      
+      // Bank details
+      bankDetails: {
+        beneficiary: entityData.beneficiary,
+        bank: entityData.bank,
+        branch: entityData.branch,
+        accountNumber: entityData.accountNumber,
+        ifscCode: entityData.ifscCode,
+        swiftCode: entityData.swiftCode,
+        currency: entityData.currency || 'USD'
+      },
       
       // Additional fields from forms
-      ...entityData,
-      
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+      industry: entityData.industry,
+      taxId: entityData.taxId,
+      notes: entityData.notes,
+      email: entityData.email
+    });
 
-    // Store the entity in memory 
-    entities.push(newEntity);
+    // Save to MongoDB
+    const savedEntity = await newEntity.save();
 
-    console.log('Entity created:', newEntity);
+    console.log('Entity created:', savedEntity);
 
     // Send real-time notification about new entity
     broadcastNotification({
       id: Date.now().toString(),
-      title: `New ${newEntity.type.charAt(0).toUpperCase() + newEntity.type.slice(1)} Added`,
-      message: `${newEntity.name} has been successfully added to the system`,
+      title: `New ${savedEntity.type.charAt(0).toUpperCase() + savedEntity.type.slice(1)} Added`,
+      message: `${savedEntity.name} has been successfully added to the system`,
       type: 'success',
       timestamp: new Date().toISOString(),
       actionUrl: '/entities'
@@ -216,7 +286,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Entity created successfully',
-      data: newEntity
+      data: savedEntity
     });
   } catch (error) {
     console.error('Create entity error:', error);
@@ -233,28 +303,25 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     
-    const entityIndex = entities.findIndex(e => e.id === id);
+    const updatedEntity = await EntityModel.findByIdAndUpdate(
+      id, 
+      { ...updateData }, 
+      { new: true, runValidators: true }
+    );
     
-    if (entityIndex === -1) {
+    if (!updatedEntity) {
       return res.status(404).json({
         success: false,
         message: 'Entity not found'
       });
     }
     
-    // Update entity with new data
-    entities[entityIndex] = {
-      ...entities[entityIndex],
-      ...updateData,
-      updatedAt: new Date().toISOString()
-    };
-    
-    console.log('Entity updated:', entities[entityIndex]);
+    console.log('Entity updated:', updatedEntity);
     
     res.json({
       success: true,
       message: 'Entity updated successfully',
-      data: entities[entityIndex]
+      data: updatedEntity
     });
   } catch (error) {
     console.error('Update entity error:', error);
@@ -271,19 +338,18 @@ router.put('/:id/limits', async (req, res) => {
     const { id } = req.params;
     const { newLimit, reason, adjustedBy } = req.body;
     
-    const entityIndex = entities.findIndex(e => e.id === id);
+    const entity = await EntityModel.findById(id);
     
-    if (entityIndex === -1) {
+    if (!entity) {
       return res.status(404).json({
         success: false,
         message: 'Entity not found'
       });
     }
 
-    const entity = entities[entityIndex];
     const currentLimit = entity.type === 'supplier' 
       ? (entity.totalLimitSanctioned || entity.creditLimit || 0)
-      : (entity.creditLimit || entity.exposureLimit || 0);
+      : (entity.creditLimit || 0);
     
     const usedLimit = entity.usedLimit || entity.usedCredit || 0;
 
@@ -312,28 +378,15 @@ router.put('/:id/limits', async (req, res) => {
         }
       : {
           creditLimit: newLimit,
-          exposureLimit: newLimit,
           availableLimit: newLimit - usedLimit
         };
 
-    // Update entity with new limits and audit trail
-    entities[entityIndex] = {
-      ...entity,
-      ...limitUpdates,
-      limitAdjustmentHistory: [
-        ...(entity.limitAdjustmentHistory || []),
-        {
-          date: new Date().toISOString(),
-          previousLimit: currentLimit,
-          newLimit,
-          reason: reason || 'No reason provided',
-          adjustedBy: adjustedBy || 'System',
-          change: newLimit - currentLimit,
-          changePercentage: currentLimit > 0 ? ((newLimit - currentLimit) / currentLimit * 100) : 0
-        }
-      ],
-      updatedAt: new Date().toISOString()
-    };
+    // Update entity
+    const updatedEntity = await EntityModel.findByIdAndUpdate(
+      id,
+      limitUpdates,
+      { new: true, runValidators: true }
+    );
     
     console.log(`Limit adjusted for ${entity.name}: ${currentLimit} -> ${newLimit} (${reason})`);
     
@@ -341,7 +394,7 @@ router.put('/:id/limits', async (req, res) => {
       success: true,
       message: 'Limits adjusted successfully',
       data: {
-        entity: entities[entityIndex],
+        entity: updatedEntity,
         previousLimit: currentLimit,
         newLimit,
         change: newLimit - currentLimit,
@@ -362,18 +415,43 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const entityIndex = entities.findIndex(e => e.id === id);
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB not connected - cannot delete entities from database');
+      return res.status(503).json({
+        success: false,
+        message: 'Database not available - cannot delete entities'
+      });
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid entity ID format'
+      });
+    }
     
-    if (entityIndex === -1) {
+    const deletedEntity = await EntityModel.findByIdAndDelete(id);
+    
+    if (!deletedEntity) {
       return res.status(404).json({
         success: false,
         message: 'Entity not found'
       });
     }
     
-    const deletedEntity = entities.splice(entityIndex, 1)[0];
+    console.log('Entity deleted:', deletedEntity.name, deletedEntity._id);
     
-    console.log('Entity deleted:', deletedEntity.name, deletedEntity.id);
+    // Send notification about deleted entity
+    broadcastNotification({
+      id: Date.now().toString(),
+      title: `${deletedEntity.type.charAt(0).toUpperCase() + deletedEntity.type.slice(1)} Deleted`,
+      message: `${deletedEntity.name} has been removed from the system`,
+      type: 'warning',
+      timestamp: new Date().toISOString(),
+      actionUrl: '/entities'
+    });
     
     res.json({
       success: true,
@@ -384,12 +462,10 @@ router.delete('/:id', async (req, res) => {
     console.error('Delete entity error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
     });
   }
 });
-
-// Export entities for cross-module access (temporary until database implementation)
-export { entities };
 
 export default router;

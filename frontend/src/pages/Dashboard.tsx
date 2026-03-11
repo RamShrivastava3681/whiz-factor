@@ -51,14 +51,14 @@ export default function Dashboard() {
     
     try {
       // Fetch KPI data
-      const metricsResponse = await fetch('http://localhost:3001/api/treasury/dashboard-metrics', {
+      const metricsResponse = await fetch('http://localhost:3000/api/treasury/dashboard-metrics', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
       });
       
       // Fetch alerts data
-      const alertsResponse = await fetch('http://localhost:3001/api/treasury/dashboard-alerts', {
+      const alertsResponse = await fetch('http://localhost:3000/api/treasury/dashboard-alerts', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -178,30 +178,30 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Total Transactions"
-          value={kpis?.totalTransactions.value.toLocaleString() || '0'}
+          value={kpis?.totalTransactions?.value?.toLocaleString() || '0'}
           icon={FileText}
           variant="primary"
           loading={loading}
         />
         <KPICard
           title="Total Due Amount"
-          value={kpis ? formatCurrency(kpis.totalDueAmount.value, kpis.totalDueAmount.currency) : '$0'}
+          value={kpis?.totalDueAmount ? formatCurrency(kpis.totalDueAmount.value, kpis.totalDueAmount.currency) : '$0'}
           icon={DollarSign}
-          variant={kpis?.totalDueAmount.trend === 'up' ? 'warning' : 'success'}
+          variant={kpis?.totalDueAmount?.trend === 'up' ? 'warning' : 'success'}
           loading={loading}
         />
         <KPICard
           title="Total Reserves"
-          value=""
+          value={kpis?.totalReserves ? formatCurrency(kpis.totalReserves.value, kpis.totalReserves.currency) : '$0'}
           icon={Shield}
-          variant={kpis?.totalReserves.trend === 'down' ? 'warning' : 'success'}
+          variant={kpis?.totalReserves?.trend === 'down' ? 'warning' : 'success'}
           loading={loading}
         />
         <KPICard
           title="Portfolio Utilization"
-          value=""
+          value={kpis?.portfolioUtilization ? `${kpis.portfolioUtilization.value}%` : '0%'}
           icon={TrendingUp}
-          variant={kpis && kpis.portfolioUtilization.value > 80 ? 'warning' : 'primary'}
+          variant={kpis?.portfolioUtilization?.value > 80 ? 'warning' : 'primary'}
           loading={loading}
         />
       </div>

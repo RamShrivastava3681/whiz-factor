@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Activity, TrendingUp, Eye, Bell, CheckCircle, XCircle, DollarSign, Calendar, Clock, RefreshCw, FileText } from 'lucide-react';
+import { AlertTriangle, Activity, TrendingUp, Eye, Bell, CheckCircle, XCircle, DollarSign, Calendar, Clock, RefreshCw, FileText, Download, Banknote } from 'lucide-react';
 import { mockAlerts, mockTransactions } from '@/data/demoData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import InvoicePaymentDialog from '@/components/forms/InvoicePaymentDialog';
 import InvoiceClosureDialog from '@/components/forms/InvoiceClosureDialog';
 
@@ -69,9 +70,10 @@ interface OpenInvoice {
   paidAmount: number;
   remainingAmount: number;
   dueDate: string;
-  status: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'closed' | 'expired';
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'closed' | 'expired' | 'pending_reserves';
   agingDays: number;
   lateFees?: number;
+  reserves?: number;
   paymentHistory: Array<{
     id: string;
     amount: number;
@@ -131,7 +133,8 @@ export default function Monitoring() {
     overdue: 0,
     partiallyPaid: 0,
     totalAmount: 0,
-    totalRemaining: 0
+    totalRemaining: 0,
+    totalReserves: 0
   });
   const [closedInvoiceSummary, setClosedInvoiceSummary] = useState({
     total: 0,
@@ -141,7 +144,7 @@ export default function Monitoring() {
   });
   const [loading, setLoading] = useState(true);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('open-invoices');
   
   // Dialog states
   const [selectedAlert, setSelectedAlert] = useState<SystemAlert | null>(null);
@@ -149,6 +152,8 @@ export default function Monitoring() {
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [bulkResolveDialogOpen, setBulkResolveDialogOpen] = useState(false);
   const [selectedAlerts, setSelectedAlerts] = useState<string[]>([]);
+  const [downloadingInvoices, setDownloadingInvoices] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   useEffect(() => {
     loadMonitoringData().catch(console.error);
@@ -166,7 +171,7 @@ export default function Monitoring() {
   const loadClosedInvoices = async () => {
     setInvoicesLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/treasury/closed-invoices', {
+      const response = await fetch('http://localhost:3000/api/treasury/closed-invoices', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -189,10 +194,60 @@ export default function Monitoring() {
     }
   };
 
+  // Download closure report for closed invoice
+  const downloadClosureReport = async (invoiceId: string) => {
+    setDownloadingInvoices(prev => new Set([...prev, invoiceId]));
+    try {
+      console.log(`Attempting to download closure report for invoice: ${invoiceId}`);
+      
+      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoiceId}/closure-report`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+      
+      console.log(`Response status: ${response.status}`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Invoice_Closure_Report_${invoiceId}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Success",
+          description: "Invoice closure report downloaded successfully!",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Download failed with response:', errorData);
+        throw new Error(errorData.message || 'Failed to download closure report');
+      }
+    } catch (error: any) {
+      console.error('Download error:', error);
+      toast({
+        title: "Error",
+        description: `Failed to download closure report: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingInvoices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(invoiceId);
+        return newSet;
+      });
+    }
+  };
+
   const loadOpenInvoices = async () => {
     setInvoicesLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/treasury/open-invoices', {
+      const response = await fetch('http://localhost:3000/api/treasury/open-invoices', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -207,7 +262,8 @@ export default function Monitoring() {
           overdue: 0,
           partiallyPaid: 0,
           totalAmount: 0,
-          totalRemaining: 0
+          totalRemaining: 0,
+          totalReserves: 0
         });
       }
     } catch (error) {
@@ -219,7 +275,7 @@ export default function Monitoring() {
 
   const handlePaymentRecorded = (updatedInvoice: OpenInvoice, payment: any) => {
     setOpenInvoices(prev => 
-      prev.map(invoice => 
+      prev.filter(invoice => invoice && invoice.id).map(invoice => 
         invoice.id === updatedInvoice.id ? updatedInvoice : invoice
       )
     );
@@ -229,7 +285,7 @@ export default function Monitoring() {
   const handleInvoiceClosed = (closedInvoice: OpenInvoice) => {
     // Force immediate state update with closed status
     setOpenInvoices(prev => 
-      prev.map(invoice => 
+      prev.filter(invoice => invoice && invoice.id).map(invoice => 
         invoice.id === closedInvoice.id ? { ...invoice, ...closedInvoice, status: 'closed' } : invoice
       )
     );
@@ -240,9 +296,60 @@ export default function Monitoring() {
     }, 500);
   };
 
+  const handleSendToTreasury = async (invoice: OpenInvoice) => {
+    try {
+      const response = await fetch('http://localhost:3000/api/monitoring/send-to-treasury', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          supplierId: invoice.supplierId,
+          supplierName: invoice.supplierName,
+          reserveAmount: invoice.reserves || 0,
+          reference: invoice.reference,
+          dueDate: invoice.dueDate
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        toast({
+          title: "Success",
+          description: `Reserve details for ${invoice.supplierName} sent to treasury successfully.`,
+        });
+        
+        // Update invoice status to indicate reserves have been sent
+        setOpenInvoices(prev => 
+          prev.filter(inv => inv && inv.id).map(inv => 
+            inv.id === invoice.id 
+              ? { ...inv, status: 'pending_reserves' as any } // This will indicate reserves are pending payment
+              : inv
+          )
+        );
+        
+        // Refresh data to get the latest status
+        loadOpenInvoices();
+      } else {
+        throw new Error('Failed to send to treasury');
+      }
+    } catch (error) {
+      console.error('Error sending to treasury:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send reserve details to treasury. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getInvoiceStatusBadge = (status: string) => {
     const config = {
       pending: { className: 'bg-blue-100 text-blue-800', icon: Clock },
+      pending_reserves: { className: 'bg-purple-100 text-purple-800', icon: Clock },
       partially_paid: { className: 'bg-yellow-100 text-yellow-800', icon: DollarSign },
       paid: { className: 'bg-green-100 text-green-800', icon: CheckCircle },
       overdue: { className: 'bg-red-100 text-red-800', icon: AlertTriangle },
@@ -253,10 +360,12 @@ export default function Monitoring() {
     const statusConfig = config[status as keyof typeof config] || config.pending;
     const Icon = statusConfig.icon;
     
+    const displayStatus = status === 'pending_reserves' ? 'PENDING RESERVES' : status.replace('_', ' ').toUpperCase();
+    
     return (
       <Badge className={statusConfig.className}>
         <Icon className="h-3 w-3 mr-1" />
-        {status.replace('_', ' ').toUpperCase()}
+        {displayStatus}
       </Badge>
     );
   };
@@ -266,7 +375,7 @@ export default function Monitoring() {
     
     try {
       // Fetch real transactions data from backend
-      const transactionsResponse = await fetch('http://localhost:3001/api/transactions', {
+      const transactionsResponse = await fetch('http://localhost:3000/api/transactions', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -492,188 +601,248 @@ export default function Monitoring() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="transactions">Transaction Health</TabsTrigger>
-          <TabsTrigger value="alerts">System Alerts</TabsTrigger>
-          <TabsTrigger value="risks">Risk Indicators</TabsTrigger>
           <TabsTrigger value="open-invoices">Open Invoices</TabsTrigger>
+          <TabsTrigger value="due-invoices">Due Invoices</TabsTrigger>
           <TabsTrigger value="closed-invoices">Closed Invoices</TabsTrigger>
+          <TabsTrigger value="fees">Fees</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard" className="space-y-6">
-          {dashboard && (
-            <>
-              {/* Health Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{dashboard.healthSummary.total}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Under monitoring
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Healthy</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{dashboard.healthSummary.healthy}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {dashboard.healthSummary.total > 0 ? Math.round((dashboard.healthSummary.healthy / dashboard.healthSummary.total) * 100) : 0}% of total
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Warning</CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-yellow-600">{dashboard.healthSummary.warning}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Need attention
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Critical</CardTitle>
-                    <XCircle className="h-4 w-4 text-red-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{dashboard.healthSummary.critical}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Immediate action
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-red-600" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{dashboard.healthSummary.overdue}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Past due date
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+        <TabsContent value="due-invoices" className="space-y-6">
+          {/* Due Invoices Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Due This Week</CardTitle>
+                <Calendar className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">-</div>
+                <p className="text-xs text-muted-foreground">
+                  Payments expected
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Due This Month</CardTitle>
+                <Calendar className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">-</div>
+                <p className="text-xs text-muted-foreground">
+                  Expected receivables
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">$0</div>
+                <p className="text-xs text-muted-foreground">
+                  Expected receivables
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Overdue Payments</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">-</div>
+                <p className="text-xs text-muted-foreground">
+                  Late receivables
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* Aging Analysis */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Transaction Aging Analysis</CardTitle>
-                  <CardDescription>Distribution of transactions by aging buckets</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Object.entries(dashboard.agingAnalysis).map(([bucket, count]) => {
-                      const total = Object.values(dashboard.agingAnalysis).reduce((sum, c) => sum + c, 0);
-                      const percentage = total > 0 ? (count / total) * 100 : 0;
-                      
-                      return (
-                        <div key={bucket} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="font-medium">{bucket} days</span>
-                            <Progress value={percentage} className="flex-1 max-w-xs" />
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold">{count}</div>
-                            <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
-                          </div>
-                        </div>
-                      );
-                    })}
+          {/* Due Invoices Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Due Invoices</CardTitle>
+              <CardDescription>Invoices due for payment from customers (receivables)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Days Until Due</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                      No due invoices at this time
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fees" className="space-y-6">
+          {/* Fee Management Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Fees Collected</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">$0</div>
+                <p className="text-xs text-muted-foreground">
+                  This month
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Late Fees</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">$0</div>
+                <p className="text-xs text-muted-foreground">
+                  Penalty charges
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Transaction Fees</CardTitle>
+                <Activity className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">$0</div>
+                <p className="text-xs text-muted-foreground">
+                  Processing fees
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Service Fees</CardTitle>
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">$0</div>
+                <p className="text-xs text-muted-foreground">
+                  Additional services
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Fee Collection Analysis */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fee Type Breakdown</CardTitle>
+                <CardDescription>Distribution of collected fees by type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="font-medium">Transaction Fees</span>
+                      <Progress value={0} className="flex-1 max-w-xs" />
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold">$0</div>
+                      <div className="text-xs text-muted-foreground">0%</div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Alerts */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      Recent Alerts
-                      <Badge variant="secondary">
-                        {dashboard.recentAlerts.filter(a => !a.isResolved).length} active
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>Latest system notifications</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {dashboard.recentAlerts.slice(0, 5).map((alert) => (
-                        <div key={alert.id} className="flex items-start justify-between p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <div className="font-medium">{alert.title}</div>
-                            <div className="text-sm text-muted-foreground">{alert.message}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(alert.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getSeverityBadge(alert.severity).variant}>
-                              {getSeverityBadge(alert.severity).label}
-                            </Badge>
-                            {!alert.isRead && (
-                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="font-medium">Late Fees</span>
+                      <Progress value={0} className="flex-1 max-w-xs" />
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* High Risk Transactions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>High Risk Transactions</CardTitle>
-                    <CardDescription>Transactions with risk score &gt; 70</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {dashboard.highRiskTransactions.slice(0, 5).map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <div className="font-medium font-mono">{transaction.transactionId}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {transaction.agingDays} days old • {transaction.agingBucket} bucket
-                            </div>
-                            {transaction.isOverdue && (
-                              <div className="text-xs text-red-600">
-                                Overdue by {transaction.overdueBy} days
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <div className={`font-bold text-lg ${getRiskScoreColor(transaction.riskScore || 0)}`}>
-                              {transaction.riskScore || 0}
-                            </div>
-                            <Badge variant={getHealthStatusBadge(transaction.healthStatus).variant}>
-                              {getHealthStatusBadge(transaction.healthStatus).label}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="text-right">
+                      <div className="font-bold">$0</div>
+                      <div className="text-xs text-muted-foreground">0%</div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="font-medium">Service Fees</span>
+                      <Progress value={0} className="flex-1 max-w-xs" />
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold">$0</div>
+                      <div className="text-xs text-muted-foreground">0%</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Fee Trend</CardTitle>
+                <CardDescription>Fee collection over the last 6 months</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">January 2026</span>
+                    <span className="font-medium">$0</span>
+                  </div>
+                  <div className="text-center py-8 text-muted-foreground">
+                    No historical fee data available
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Fee Details Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Fee Collection Details</CardTitle>
+              <CardDescription>Detailed breakdown of fees collected</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Transaction ID</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Fee Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Collected Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      No fee collection data available
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-4">
@@ -740,307 +909,11 @@ export default function Monitoring() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="alerts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>System Alerts</CardTitle>
-                  <CardDescription>Active system notifications and alerts</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {selectedAlerts.length > 0 && (
-                    <Dialog open={bulkResolveDialogOpen} onOpenChange={setBulkResolveDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline">
-                          Resolve Selected ({selectedAlerts.length})
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Bulk Resolve Alerts</DialogTitle>
-                          <DialogDescription>
-                            Resolve {selectedAlerts.length} selected alerts
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <p>Are you sure you want to resolve all selected alerts?</p>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setBulkResolveDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleBulkResolve}>
-                              Resolve Selected
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedAlerts(alerts.filter(a => !a.isResolved).map(a => a.id));
-                          } else {
-                            setSelectedAlerts([]);
-                          }
-                        }}
-                      />
-                    </TableHead>
-                    <TableHead>Alert</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Entity</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alerts.map((alert) => (
-                    <TableRow key={alert.id}>
-                      <TableCell>
-                        {!alert.isResolved && (
-                          <input
-                            type="checkbox"
-                            checked={selectedAlerts.includes(alert.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedAlerts([...selectedAlerts, alert.id]);
-                              } else {
-                                setSelectedAlerts(selectedAlerts.filter(id => id !== alert.id));
-                              }
-                            }}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-start gap-2">
-                          {!alert.isRead && (
-                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                          )}
-                          <div>
-                            <div className="font-medium">{alert.title}</div>
-                            <div className="text-sm text-muted-foreground">{alert.message}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getSeverityBadge(alert.severity).variant}>
-                          {getSeverityBadge(alert.severity).label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {alert.entityType && (
-                          <div className="text-sm">
-                            <div>{alert.entityType}</div>
-                            <div className="font-mono text-xs text-muted-foreground">
-                              {alert.entityId}
-                            </div>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(alert.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {alert.isResolved ? (
-                            <Badge variant="default">Resolved</Badge>
-                          ) : (
-                            <Badge variant="outline">Active</Badge>
-                          )}
-                          {!alert.isRead && (
-                            <div className="text-xs text-blue-600">Unread</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {!alert.isRead && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkAsRead(alert.id)}
-                            >
-                              Mark Read
-                            </Button>
-                          )}
-                          {!alert.isResolved && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedAlert(alert);
-                                setResolveDialogOpen(true);
-                              }}
-                            >
-                              Resolve
-                            </Button>
-                          )}
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Alert Details</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div>
-                                  <Label>Title</Label>
-                                  <p className="font-medium">{alert.title}</p>
-                                </div>
-                                <div>
-                                  <Label>Message</Label>
-                                  <p>{alert.message}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Severity</Label>
-                                    <div>
-                                      <Badge variant={getSeverityBadge(alert.severity).variant}>
-                                        {getSeverityBadge(alert.severity).label}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <Label>Created</Label>
-                                    <p>{new Date(alert.createdAt).toLocaleString()}</p>
-                                  </div>
-                                </div>
-                                {alert.resolutionNotes && (
-                                  <div>
-                                    <Label>Resolution Notes</Label>
-                                    <p className="text-sm bg-muted p-2 rounded">{alert.resolutionNotes}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
 
-          {/* Resolve Alert Dialog */}
-          <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Resolve Alert</DialogTitle>
-                <DialogDescription>
-                  Mark this alert as resolved and provide resolution notes
-                </DialogDescription>
-              </DialogHeader>
-              {selectedAlert && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="font-medium">{selectedAlert.title}</div>
-                    <div className="text-sm text-muted-foreground">{selectedAlert.message}</div>
-                  </div>
-                  <div>
-                    <Label htmlFor="resolution-notes">Resolution Notes</Label>
-                    <Textarea
-                      id="resolution-notes"
-                      value={resolutionNotes}
-                      onChange={(e) => setResolutionNotes(e.target.value)}
-                      placeholder="Describe how this alert was resolved..."
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setResolveDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleResolveAlert}>
-                      Resolve Alert
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </TabsContent>
-
-        <TabsContent value="risks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Risk Indicators</CardTitle>
-              <CardDescription>Active risk indicators across entities</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Entity</TableHead>
-                    <TableHead>Risk Type</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Value/Threshold</TableHead>
-                    <TableHead>Detected</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {riskIndicators.map((risk) => (
-                    <TableRow key={risk.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-mono">{risk.entityId}</div>
-                          <Badge variant="outline" className="text-xs">
-                            {risk.entityType}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">{risk.indicatorType}</TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="truncate">{risk.description}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getSeverityBadge(risk.severity).variant}>
-                          {getSeverityBadge(risk.severity).label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-mono text-sm">
-                          <div>{risk.value.toLocaleString()}</div>
-                          <div className="text-muted-foreground">
-                            Threshold: {risk.threshold.toLocaleString()}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(risk.detectedAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={risk.isActive ? 'destructive' : 'default'}>
-                          {risk.isActive ? 'Active' : 'Resolved'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="open-invoices" className="space-y-6">
           {/* Open Invoices Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
@@ -1100,7 +973,7 @@ export default function Monitoring() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${invoiceSummary.totalAmount.toLocaleString()}
+                  ${(invoiceSummary.totalAmount || 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Invoice value
@@ -1115,10 +988,25 @@ export default function Monitoring() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  ${invoiceSummary.totalRemaining.toLocaleString()}
+                  ${(invoiceSummary.totalRemaining || 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Remaining amount
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Reserves Held</CardTitle>
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  ${(invoiceSummary.totalReserves || 0).toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  20% reserves
                 </p>
               </CardContent>
             </Card>
@@ -1152,27 +1040,30 @@ export default function Monitoring() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Invoice ID</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Paid</TableHead>
-                      <TableHead>Remaining</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Supplier Name</TableHead>
+                      <TableHead>Buyer Name</TableHead>
+                      <TableHead>Buyer Owes</TableHead>
+                      <TableHead>Advance Paid</TableHead>
+                      <TableHead>Reserves Held</TableHead>
                       <TableHead>Due Date</TableHead>
-                      <TableHead>Aging</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Invoice Aging</TableHead>
+                      <TableHead>Amount Received</TableHead>
+                      <TableHead>Date Received</TableHead>
+                      <TableHead>Late Days</TableHead>
                       <TableHead>Late Fees</TableHead>
-                      <TableHead>Alerts</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {openInvoices.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                           No open invoices found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      openInvoices.map((invoice) => (
+                      openInvoices.filter(invoice => invoice && invoice.id).map((invoice) => (
                         <TableRow key={invoice.id}>
                           <TableCell>
                             <div className="font-mono text-sm">{invoice.id}</div>
@@ -1180,30 +1071,33 @@ export default function Monitoring() {
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">{invoice.supplierName}</div>
+                            <div className="text-xs text-muted-foreground">ID: {invoice.supplierId}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">Tech Corp Ltd</div>
+                            <div className="text-xs text-muted-foreground">Buyer</div>
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">
-                              ${invoice.invoiceAmount.toLocaleString()}
+                              ${(invoice.buyerOwes || invoice.netPaidToSupplier || 0).toLocaleString()}
                             </div>
+                            <div className="text-xs text-muted-foreground">Net amount</div>
                           </TableCell>
                           <TableCell>
                             <div className="text-green-600 font-medium">
-                              ${invoice.paidAmount.toLocaleString()}
+                              ${(invoice.advanceAmount || 0).toLocaleString()}
                             </div>
+                            <div className="text-xs text-muted-foreground">To supplier</div>
                           </TableCell>
                           <TableCell>
-                            <div className={`font-medium ${
-                              invoice.remainingAmount > 0 ? 'text-red-600' : 'text-green-600'
-                            }`}>
-                              ${invoice.remainingAmount.toLocaleString()}
+                            <div className="text-purple-600 font-medium">
+                              ${(invoice.reserves || 0).toLocaleString()}
                             </div>
+                            <div className="text-xs text-muted-foreground">Held</div>
                           </TableCell>
                           <TableCell>
-                            {getInvoiceStatusBadge(invoice.status)}
-                          </TableCell>
-                          <TableCell>
-                            <div className={`text-sm ${
-                              invoice.agingDays > 0 ? 'text-red-600 font-medium' : ''
+                            <div className={`text-sm font-medium ${
+                              invoice.agingDays > 0 ? 'text-red-600' : ''
                             }`}>
                               {new Date(invoice.dueDate).toLocaleDateString()}
                             </div>
@@ -1211,50 +1105,62 @@ export default function Monitoring() {
                           <TableCell>
                             <div className="text-sm">
                               {invoice.agingDays > 0 ? (
-                                <Badge variant="destructive" className="text-xs">
-                                  {invoice.agingDays}d overdue
-                                </Badge>
+                                <div className="text-red-600 font-medium">
+                                  {invoice.agingDays} days overdue
+                                </div>
                               ) : invoice.agingDays < 0 ? (
-                                <Badge variant="secondary" className="text-xs">
-                                  Due in {Math.abs(invoice.agingDays)}d
-                                </Badge>
+                                <div className="text-blue-600 font-medium">
+                                  {Math.abs(invoice.agingDays)} days remaining
+                                </div>
                               ) : (
-                                <Badge variant="outline" className="text-xs">
+                                <div className="text-orange-600 font-medium">
                                   Due today
-                                </Badge>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getInvoiceStatusBadge(invoice.status)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-blue-600 font-medium">
+                              ${(invoice.paidAmount || 0).toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">From buyer</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {invoice.paymentHistory && invoice.paymentHistory.length > 0 
+                                ? new Date(invoice.paymentHistory[invoice.paymentHistory.length - 1].paidAt).toLocaleDateString()
+                                : new Date(invoice.createdAt).toLocaleDateString()
+                              }
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {invoice.agingDays > 0 ? (
+                                <div className="text-red-600 font-medium">
+                                  {invoice.agingDays} days
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">0 days</span>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              {invoice.lateFees > 0 ? (
+                              {(invoice.lateFees || 0) > 0 ? (
                                 <div>
                                   <div className="font-medium text-red-600">
-                                    ${invoice.lateFees.toLocaleString()}
+                                    ${(invoice.lateFees || 0).toLocaleString()}
                                   </div>
                                   <div className="text-xs text-red-500">
-                                    Late fee applied
+                                    Applied
                                   </div>
                                 </div>
                               ) : (
                                 <span className="text-gray-400">$0</span>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {invoice.alerts.filter(alert => !alert.isResolved).map((alert) => (
-                                <Badge 
-                                  key={alert.id} 
-                                  variant={
-                                    alert.severity === 'critical' ? 'destructive' : 
-                                    alert.severity === 'warning' ? 'secondary' : 'outline'
-                                  }
-                                  className="text-xs block w-fit"
-                                >
-                                  {alert.alertType.replace('_', ' ')}
-                                </Badge>
-                              ))}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1273,6 +1179,19 @@ export default function Monitoring() {
                                 />
                               )}
 
+                              {/* Send to Treasury Button - only show if there are reserves and not already sent */}
+                              {(invoice.reserves && invoice.reserves > 0 && invoice.status !== 'pending_reserves' && invoice.status !== 'closed') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                                  onClick={() => handleSendToTreasury(invoice)}
+                                >
+                                  <Banknote className="h-3 w-3 mr-1" />
+                                  Send to Treasury
+                                </Button>
+                              )}
+
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1284,6 +1203,7 @@ export default function Monitoring() {
                                     `Supplier: ${invoice.supplierName}`,
                                     `Amount: $${invoice.invoiceAmount?.toLocaleString() || 'N/A'}`,
                                     `Remaining: $${invoice.remainingAmount?.toLocaleString() || 'N/A'}`,
+                                    `Reserves: $${(invoice.reserves || 0).toLocaleString()} (20%)`,
                                     `Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`,
                                     `Status: ${invoice.status.toUpperCase()}`,
                                     invoice.agingDays > 0 ? `Overdue: ${invoice.agingDays} days` : null,
@@ -1373,7 +1293,7 @@ export default function Monitoring() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      closedInvoices.map((invoice) => (
+                      closedInvoices.filter(invoice => invoice && invoice.id).map((invoice) => (
                         <TableRow key={invoice.id}>
                           <TableCell>
                             <div>
@@ -1418,7 +1338,7 @@ export default function Monitoring() {
                                     `Paid: $${invoice.paidAmount?.toLocaleString() || 'N/A'}`,
                                     `Closed Date: ${invoice.closedAt ? new Date(invoice.closedAt).toLocaleDateString() : 'N/A'}`,
                                     `Status: ${invoice.status.toUpperCase()}`,
-                                    invoice.lateFees ? `Late Fees: $${invoice.lateFees.toLocaleString()}` : null,
+                                    invoice.lateFees ? `Late Fees: $${(invoice.lateFees || 0).toLocaleString()}` : null,
                                     invoice.closureNotes ? `Notes: ${invoice.closureNotes}` : null
                                   ].filter(Boolean).join('\\n');
                                   
@@ -1427,6 +1347,16 @@ export default function Monitoring() {
                               >
                                 <Eye className="h-3 w-3 mr-1" />
                                 Details
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => downloadClosureReport(invoice.id)}
+                                disabled={downloadingInvoices.has(invoice.id)}
+                              >
+                                <Download className={`h-3 w-3 mr-1 ${downloadingInvoices.has(invoice.id) ? 'animate-spin' : ''}`} />
+                                {downloadingInvoices.has(invoice.id) ? 'Downloading...' : 'Download'}
                               </Button>
                             </div>
                           </TableCell>

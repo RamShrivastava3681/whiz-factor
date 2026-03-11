@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
 interface AddTransactionDialogProps {
@@ -32,6 +34,7 @@ interface TransactionFormData {
   advanceAmount: number | string;
   feePercentage: number | string;
   feeAmount: number | string;
+  reserveAmount: number | string;
   // Fee breakdown for tracking
   transactionFee?: number;
   processingFee?: number;
@@ -42,6 +45,9 @@ interface TransactionFormData {
   status: string;
   transactionType: string;
   supportingDocuments: File[];
+  // NOA related fields
+  buyerEmail: string;
+  sendNOA: boolean;
 }
 
 export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialogProps) {
@@ -229,6 +235,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     advanceAmount: '',
     feePercentage: '',
     feeAmount: '',
+    reserveAmount: '',
     // Fee breakdown
     transactionFee: 0,
     processingFee: 0,
@@ -238,14 +245,17 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     description: '',
     status: 'pending',
     transactionType: 'factoring',
-    supportingDocuments: []
+    supportingDocuments: [],
+    // NOA related fields
+    buyerEmail: '',
+    sendNOA: false
   });
 
   // Fetch suppliers and buyers from entities API
   const fetchEntities = async () => {
     try {
       setLoadingEntities(true);
-      const response = await fetch('http://localhost:3001/api/entities', {
+      const response = await fetch('http://localhost:3000/api/entities', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -261,6 +271,8 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
         
         setSuppliers(supplierList);
         setBuyers(buyerList);
+      } else {
+        console.error('Failed to fetch entities:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching entities:', error);
@@ -324,26 +336,36 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     if (supplierFees && formData.invoiceAmount && parseFloat(formData.invoiceAmount.toString()) > 0) {
       const invoiceAmount = parseFloat(formData.invoiceAmount.toString()) || 0;
       const feePercentage = parseFloat(formData.feePercentage.toString()) || 0;
-      const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage);
+      const tenureDays = parseFloat(formData.tenureDays.toString()) || 0;
+      const advanceAmount = parseFloat(formData.advanceAmount.toString()) || 0;
+      const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage, true, tenureDays, advanceAmount);
       
-      if (feeCalculation.totalFees !== parseFloat(formData.feeAmount.toString())) {
+      if (feeCalculation.totalFees !== parseFloat(formData.feeAmount.toString()) || 
+          feeCalculation.reserveAmount !== parseFloat(formData.reserveAmount.toString())) {
         setFormData(prev => ({ 
           ...prev, 
           feeAmount: feeCalculation.totalFees,
+          reserveAmount: feeCalculation.reserveAmount,
           transactionFee: feeCalculation.breakdown.transactionFee,
           processingFee: feeCalculation.breakdown.processingFee,
           factoringFee: feeCalculation.breakdown.factoringFee,
           setupFee: feeCalculation.breakdown.setupFee
         }));
-        console.log(`Fees recalculated due to supplier fees change: $${feeCalculation.totalFees}`);
+        console.log(`Fees recalculated due to supplier fees change: $${feeCalculation.totalFees}, Reserve: $${feeCalculation.reserveAmount}`);
       }
     }
   }, [supplierFees]);
 
   // Helper function to calculate total fees including all supplier fees
-  const calculateTotalFees = (invoiceAmount: number, transactionFeePercentage: number = 0, updateBreakdown: boolean = true) => {
+  const calculateTotalFees = (invoiceAmount: number, transactionFeePercentage: number = 0, updateBreakdown: boolean = true, tenureDays: number = 0, advanceAmount: number = 0) => {
+    console.log('=== FEE CALCULATION STARTED ===');
+    console.log('Invoice Amount:', invoiceAmount);
+    console.log('Transaction Fee Percentage:', transactionFeePercentage);
+    console.log('Supplier Fees Object:', supplierFees);
+    
     if (invoiceAmount <= 0) {
-      return { totalFees: 0, breakdown: { transactionFee: 0, processingFee: 0, factoringFee: 0, setupFee: 0 } };
+      console.log('Invalid invoice amount, returning zero fees');
+      return { totalFees: 0, reserveAmount: 0, breakdown: { transactionFee: 0, processingFee: 0, factoringFee: 0, setupFee: 0 } };
     }
 
     let totalFees = 0;
@@ -362,17 +384,23 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     }
     
     // 2. Processing fees
+    console.log('Checking processing fees - supplierFees?.processingFees:', supplierFees?.processingFees);
     if (supplierFees?.processingFees > 0) {
-      breakdown.processingFee = parseFloat(supplierFees.processingFees);
+      breakdown.processingFee = parseFloat(supplierFees.processingFees.toString());
       totalFees += breakdown.processingFee;
       console.log(`Processing fee: $${supplierFees.processingFees} = $${breakdown.processingFee}`);
+    } else {
+      console.log('Processing fee skipped - not greater than 0');
     }
     
     // 3. Factoring fees
+    console.log('Checking factoring fees - supplierFees?.factoringFees:', supplierFees?.factoringFees);
     if (supplierFees?.factoringFees > 0) {
-      breakdown.factoringFee = (invoiceAmount * parseFloat(supplierFees.factoringFees)) / 100;
+      breakdown.factoringFee = (invoiceAmount * parseFloat(supplierFees.factoringFees.toString())) / 100;
       totalFees += breakdown.factoringFee;
       console.log(`Factoring fee: ${supplierFees.factoringFees}% = $${breakdown.factoringFee}`);
+    } else {
+      console.log('Factoring fee skipped - not greater than 0');
     }
     
     // 4. Setup fee (handling different payment methods)
@@ -387,9 +415,16 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       totalFees += breakdown.setupFee;
       console.log(`Setup fee (${supplierFees.setupFeePaymentMethod}): ${supplierFees.setupFee}% = $${breakdown.setupFee}`);
     }
+
+    // 5. Calculate reserve fee as 20% of invoice amount
+    const reserveAmount = invoiceAmount * 0.20;
     
-    console.log(`Total calculated fees: $${totalFees}`);
-    return { totalFees, breakdown };
+    console.log('=== FEE CALCULATION COMPLETE ===');
+    console.log('Final breakdown:', breakdown);
+    console.log('Total fees:', totalFees);
+    console.log('Reserve amount:', reserveAmount);
+    console.log(`Total calculated fees: $${totalFees}, Reserve amount: $${reserveAmount}`);
+    return { totalFees, reserveAmount, breakdown };
   };
 
   const handleInputChange = (field: keyof TransactionFormData, value: string | number | boolean) => {
@@ -397,7 +432,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     
     // Handle supplier selection
     if (field === 'supplierId') {
-      const selectedSupplier = suppliers.find(s => s.id === value);
+      const selectedSupplier = suppliers.find(s => (s.id || s._id) === value);
       setSelectedSupplier(selectedSupplier || null);
       updatedData.supplierName = selectedSupplier ? selectedSupplier.name : '';
       
@@ -407,12 +442,13 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
         // Filter buyers to show only those linked to this supplier
         const linkedBuyers = buyers.filter(buyer => 
           buyer.supplierLimits && 
-          buyer.supplierLimits.some((sl: any) => sl.supplierId === selectedSupplier.id)
+          buyer.supplierLimits.some((sl: any) => sl.supplierId === (selectedSupplier.id || selectedSupplier._id))
         );
         setFilteredBuyers(linkedBuyers);
         console.log('Filtered buyers for supplier:', linkedBuyers);
         
         // Store all supplier fee information
+        console.log('Setting supplier fees for selected supplier:', selectedSupplier);
         setSupplierFees({
           processingFees: selectedSupplier.processingFees || 0,
           factoringFees: selectedSupplier.factoringFees || 0,
@@ -421,6 +457,12 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
           lateFees: selectedSupplier.lateFees || 0,
           advanceRate: selectedSupplier.advanceRate || 80,
           creditLimit: selectedSupplier.totalLimitSanctioned || selectedSupplier.creditLimit || 0
+        });
+        
+        console.log('Supplier fees set:', {
+          processingFees: selectedSupplier.processingFees || 0,
+          factoringFees: selectedSupplier.factoringFees || 0,
+          setupFee: selectedSupplier.setupFee || 0
         });
         
         // Update available payment terms based on selected supplier
@@ -473,10 +515,12 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     
     // Handle buyer selection
     if (field === 'buyerId') {
-      const selectedBuyer = buyers.find(b => b.id === value);
+      const selectedBuyer = buyers.find(b => (b.id || b._id) === value);
       setSelectedBuyer(selectedBuyer || null);
       updatedData.buyerName = selectedBuyer ? selectedBuyer.name : '';
+      updatedData.buyerEmail = selectedBuyer ? (selectedBuyer.email || selectedBuyer.contactEmail || '') : '';
       console.log('Selected Buyer:', selectedBuyer);
+      console.log('Buyer Email set to:', updatedData.buyerEmail);
     }
     
     // Handle payment terms selection - update fee percentage and due date (only if tenure not provided)
@@ -598,8 +642,16 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     // Auto-calculate advance amount and fee amount when relevant fields change
     if (field === 'invoiceAmount' || field === 'advancePercentage') {
       const invoiceAmount = parseFloat(updatedData.invoiceAmount.toString()) || 0;
-      const advancePercentage = updatedData.advancePercentage;
-      updatedData.advanceAmount = (invoiceAmount * advancePercentage) / 100;
+      
+      // Calculate reserve amount first (always 20% of invoice amount)
+      const reserveAmount = invoiceAmount * 0.20;
+      
+      // Available for advance is invoice minus reserve
+      const availableForAdvance = invoiceAmount - reserveAmount;
+      
+      // Advance amount should not exceed available amount after reserve
+      updatedData.advanceAmount = availableForAdvance;
+      updatedData.reserveAmount = reserveAmount;
       
       // Validate against supplier and buyer limits
       if (selectedSupplier && invoiceAmount > 0) {
@@ -618,11 +670,14 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     }
     
     // Recalculate fees when invoice amount, fee percentage, or payment terms change
-    if (field === 'invoiceAmount' || field === 'feePercentage' || field === 'supplierPaymentTerms') {
+    if (field === 'invoiceAmount' || field === 'feePercentage' || field === 'supplierPaymentTerms' || field === 'tenureDays' || field === 'advanceAmount') {
       const invoiceAmount = parseFloat(updatedData.invoiceAmount.toString()) || 0;
       const feePercentage = parseFloat(updatedData.feePercentage.toString()) || 0;
-      const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage);
+      const tenureDays = parseFloat(updatedData.tenureDays.toString()) || 0;
+      const advanceAmount = parseFloat(updatedData.advanceAmount.toString()) || 0;
+      const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage, true, tenureDays, advanceAmount);
       updatedData.feeAmount = feeCalculation.totalFees;
+      updatedData.reserveAmount = feeCalculation.reserveAmount;
       updatedData.transactionFee = feeCalculation.breakdown.transactionFee;
       updatedData.processingFee = feeCalculation.breakdown.processingFee;
       updatedData.factoringFee = feeCalculation.breakdown.factoringFee;
@@ -633,9 +688,12 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     if (field === 'supplierId' && selectedSupplier) {
       const invoiceAmount = parseFloat(updatedData.invoiceAmount.toString()) || 0;
       const feePercentage = parseFloat(updatedData.feePercentage.toString()) || 0;
+      const tenureDays = parseFloat(updatedData.tenureDays.toString()) || 0;
+      const advanceAmount = parseFloat(updatedData.advanceAmount.toString()) || 0;
       if (invoiceAmount > 0) {
-        const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage);
+        const feeCalculation = calculateTotalFees(invoiceAmount, feePercentage, true, tenureDays, advanceAmount);
         updatedData.feeAmount = feeCalculation.totalFees;
+        updatedData.reserveAmount = feeCalculation.reserveAmount;
         updatedData.transactionFee = feeCalculation.breakdown.transactionFee;
         updatedData.processingFee = feeCalculation.breakdown.processingFee;
         updatedData.factoringFee = feeCalculation.breakdown.factoringFee;
@@ -697,8 +755,13 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     }
     
     try {
+      console.log('=== TRANSACTION SUBMISSION DEBUG ===');
+      console.log('Form data being sent:', JSON.stringify(formData, null, 2));
+      console.log('Selected Supplier:', selectedSupplier);
+      console.log('Selected Buyer:', selectedBuyer);
+      
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3001/api/transactions', {
+      const response = await fetch('http://localhost:3000/api/transactions', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -708,7 +771,9 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create transaction');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Transaction creation failed:', response.status, errorData);
+        throw new Error(errorData.message || 'Failed to create transaction');
       }
       
       const result = await response.json();
@@ -717,6 +782,39 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       toast.success('Transaction created successfully!', {
         description: `Transaction ID: ${createdTransaction.transactionId || 'N/A'} | Invoice ID: ${createdTransaction.invoiceId || 'N/A'}`
       });
+
+      // Send NOA if requested
+      if (formData.sendNOA && formData.buyerEmail) {
+        try {
+          const noaResponse = await fetch('http://localhost:3000/api/noa/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({
+              transactionId: createdTransaction.transactionId,
+              buyerEmail: formData.buyerEmail
+            })
+          });
+
+          if (noaResponse.ok) {
+            const noaResult = await noaResponse.json();
+            toast.success('NOA sent successfully!', {
+              description: `Notice of Assignment sent to ${formData.buyerEmail}`
+            });
+          } else {
+            toast.warning('Transaction created but NOA failed to send', {
+              description: 'You can manually send the NOA from the transaction details'
+            });
+          }
+        } catch (noaError) {
+          console.error('NOA send error:', noaError);
+          toast.warning('Transaction created but NOA failed to send', {
+            description: 'You can manually send the NOA from the transaction details'
+          });
+        }
+      }
       
       // Trigger a refresh of the transactions list and entities
       window.dispatchEvent(new CustomEvent('refreshTransactions'));
@@ -744,6 +842,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
         advanceAmount: '',
         feePercentage: '',
         feeAmount: '',
+        reserveAmount: '',
         // Fee breakdown
         transactionFee: 0,
         processingFee: 0,
@@ -753,7 +852,10 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
         description: '',
         status: 'pending',
         transactionType: 'factoring',
-        supportingDocuments: []
+        supportingDocuments: [],
+        // NOA related fields
+        buyerEmail: '',
+        sendNOA: false
       });
       setSelectedSupplier(null);
       setSelectedBuyer(null);
@@ -788,7 +890,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
               <CardTitle className="text-lg">Transaction Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label htmlFor="transactionType">Transaction Type *</Label>
                   <Select
@@ -806,22 +908,17 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                   </Select>
                 </div>
                 
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => handleInputChange('status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="funded">Funded</SelectItem>
-                      <SelectItem value="settled">Settled</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Status Info */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Automatic Status Management</p>
+                      <p className="text-sm text-blue-700">
+                        Transaction will start as <strong>Pending</strong> and automatically become <strong>Approved</strong> when buyer accepts the NOA
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -844,14 +941,27 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                       <SelectValue placeholder={loadingEntities ? "Loading suppliers..." : "Select supplier"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {suppliers.map((supplier) => {
-                        const available = (supplier.totalLimitSanctioned || 0) - (supplier.usedLimit || 0);
-                        return (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name} - Available: ${available.toLocaleString()}
-                          </SelectItem>
-                        );
-                      })}
+                      {suppliers.length === 0 && !loadingEntities ? (
+                        <SelectItem value="no-suppliers" disabled>
+                          No suppliers available
+                        </SelectItem>
+                      ) : (
+                        suppliers.map((supplier) => {
+                          const available = (supplier.totalLimitSanctioned || 0) - (supplier.usedLimit || 0);
+                          const supplierId = supplier.id || supplier._id;
+                          
+                          if (!supplierId) {
+                            console.error('Supplier missing ID:', supplier);
+                            return null;
+                          }
+                          
+                          return (
+                            <SelectItem key={supplierId} value={supplierId}>
+                              {supplier.name} - Available: ${available.toLocaleString()}
+                            </SelectItem>
+                          );
+                        }).filter(Boolean)
+                      )}
                       {suppliers.length === 0 && !loadingEntities && (
                         <div className="px-2 py-1.5 text-sm text-muted-foreground">
                           No suppliers available
@@ -889,18 +999,34 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                       } />
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredBuyers.map((buyer) => {
-                        // Find the transaction limit for this supplier-buyer relationship
-                        const supplierLimit = buyer.supplierLimits?.find((sl: any) => sl.supplierId === formData.supplierId);
-                        const transactionLimit = supplierLimit?.transactionLimit || 0;
-                        const available = transactionLimit; // Since usedAmount is 0
-                        
-                        return (
-                          <SelectItem key={buyer.id} value={buyer.id}>
-                            {buyer.name} - Limit: ${available.toLocaleString()}
-                          </SelectItem>
-                        );
-                      })}
+                      {!formData.supplierId ? (
+                        <SelectItem value="select-supplier-first" disabled>
+                          Select a supplier first
+                        </SelectItem>
+                      ) : filteredBuyers.length === 0 ? (
+                        <SelectItem value="no-linked-buyers" disabled>
+                          No buyers linked to this supplier
+                        </SelectItem>
+                      ) : (
+                        filteredBuyers.map((buyer) => {
+                          // Find the transaction limit for this supplier-buyer relationship
+                          const supplierLimit = buyer.supplierLimits?.find((sl: any) => sl.supplierId === formData.supplierId);
+                          const transactionLimit = supplierLimit?.transactionLimit || 0;
+                          const available = transactionLimit; // Since usedAmount is 0
+                          const buyerId = buyer.id || buyer._id;
+                          
+                          if (!buyerId) {
+                            console.error('Buyer missing ID:', buyer);
+                            return null;
+                          }
+                          
+                          return (
+                            <SelectItem key={buyerId} value={buyerId}>
+                              {buyer.name} - Limit: ${available.toLocaleString()}
+                            </SelectItem>
+                          );
+                        }).filter(Boolean)
+                      )}
                       {!formData.supplierId && (
                         <div className="px-2 py-1.5 text-sm text-muted-foreground">
                           Please select a supplier first
@@ -926,9 +1052,64 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                     </p>
                   )}
                 </div>
+
+                {/* NOA (Notice of Assignment) Section */}
+                <div className="col-span-2 mt-4 p-4 border rounded-lg bg-blue-50/30">
+                  <Label className="text-sm font-medium mb-3 block">
+                    Notice of Assignment (NOA) Settings
+                  </Label>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sendNOA"
+                        checked={formData.sendNOA}
+                        onCheckedChange={(checked) => handleInputChange('sendNOA', checked)}
+                      />
+                      <Label htmlFor="sendNOA" className="text-sm">
+                        Send NOA to buyer for digital verification
+                      </Label>
+                    </div>
+                    
+                    {formData.sendNOA && (
+                      <div>
+                        <Label htmlFor="buyerEmail">Buyer Email Address *</Label>
+                        <Input
+                          id="buyerEmail"
+                          type="email"
+                          value={formData.buyerEmail}
+                          onChange={(e) => handleInputChange('buyerEmail', e.target.value)}
+                          placeholder="buyer@company.com"
+                          className="mt-1"
+                          required={formData.sendNOA}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          The NOA will be sent to this email for digital signing
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* NOA Status Display */}
+          {formData.sendNOA && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Notice of Assignment Process</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Alert>
+                  <AlertDescription>
+                    After creating this transaction, a Notice of Assignment will be sent to {formData.buyerEmail}. 
+                    The buyer will need to digitally sign the NOA before the transaction can proceed to funding.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Invoice Information */}
           <Card>
@@ -1155,7 +1336,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                 </div>
                 
                 <div>
-                  <Label htmlFor="advanceAmount">Advance Amount ({formData.currency})</Label>
+                  <Label htmlFor="advanceAmount">Available for Advance ({formData.currency})</Label>
                   <Input
                     id="advanceAmount"
                     type="number"
@@ -1163,7 +1344,9 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                     step="0.01"
                     value={formData.advanceAmount}
                     onChange={(e) => handleInputChange('advanceAmount', parseFloat(e.target.value) || 0)}
-                    placeholder="80000"
+                    placeholder="Calculated automatically"
+                    readOnly
+                    className="bg-gray-50"
                   />
                 </div>
                 
@@ -1197,6 +1380,22 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                     placeholder="2500"
                   />
                 </div>
+                
+                <div>
+                  <Label htmlFor="reserveAmount">Reserve Amount ({formData.currency})</Label>
+                  <Input
+                    id="reserveAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.reserveAmount}
+                    readOnly
+                    placeholder="Auto-calculated as 20% of invoice amount"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Reserve amount is calculated as exactly 20% of the invoice amount
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1220,9 +1419,9 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                         <span className="font-medium">{supplierFees.advanceRate}%</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Advance Amount:</span>
+                        <span className="text-muted-foreground">Available for Advance:</span>
                         <span className="font-medium text-green-600">
-                          ${(parseFloat(formData.invoiceAmount.toString()) * (supplierFees.advanceRate / 100)).toLocaleString()}
+                          ${(parseFloat(formData.invoiceAmount.toString()) - (parseFloat(formData.invoiceAmount.toString()) * 0.20)).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -1253,6 +1452,14 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                           </span>
                         </div>
                       )}
+                      {(parseFloat(formData.reserveAmount?.toString() || '0') || 0) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Reserve Amount:</span>
+                          <span className="font-medium text-blue-600">
+                            ${(parseFloat(formData.reserveAmount?.toString() || '0') || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="border-t border-blue-300 mt-4 pt-4">
@@ -1266,7 +1473,8 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                       <span>Net Amount to Supplier:</span>
                       <span>
                         ${(
-                          (parseFloat(formData.advanceAmount.toString()) || 0) -
+                          (parseFloat(formData.invoiceAmount.toString()) || 0) - 
+                          (parseFloat(formData.reserveAmount?.toString() || '0') || 0) -
                           (parseFloat(formData.feeAmount.toString()) || 0)
                         ).toLocaleString()}
                       </span>

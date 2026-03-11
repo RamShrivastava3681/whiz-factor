@@ -92,7 +92,7 @@ export default function Entities() {
     setLoading(true);
     try {
       console.log('🔍 Fetching entities from backend...');
-      const response = await fetch('http://localhost:3001/api/entities', {
+      const response = await fetch('http://localhost:3000/api/entities', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -124,8 +124,16 @@ export default function Entities() {
         }));
         
         // Add backend entities (these are the new ones created via API)
-        const allEntities = [...buyersWithType, ...suppliersWithType, ...backendEntities];
+        // Normalize backend entities to have consistent ID field
+        const normalizedBackendEntities = backendEntities.map(entity => ({
+          ...entity,
+          id: entity._id || entity.id, // Use MongoDB _id as the primary identifier
+          entityId: entity.entityId || entity.id || entity._id // Keep entityId for reference
+        }));
+        
+        const allEntities = [...buyersWithType, ...suppliersWithType, ...normalizedBackendEntities];
         console.log('🔗 Total entities after combining:', allEntities.length);
+        console.log('🔍 First backend entity ID mapping:', normalizedBackendEntities[0]?.id, normalizedBackendEntities[0]?._id);
         setEntities(allEntities);
         
         // Calculate stats from actual backend entities only (avoid double counting with mock data)
@@ -250,6 +258,16 @@ export default function Entities() {
 
   // Handle delete entity
   const handleDeleteEntity = (entity: any) => {
+    // Check if this is a mock entity (these shouldn't be deleted via API)
+    if (!entity._id && !entity.id?.includes('-')) {
+      import('sonner').then(({ toast }) => {
+        toast.error('Cannot delete demo entity', {
+          description: 'Demo entities cannot be deleted. Only entities created in this system can be removed.'
+        });
+      });
+      return;
+    }
+    
     setEntityToDelete(entity);
     setIsDeleteDialogOpen(true);
   };
@@ -259,12 +277,16 @@ export default function Entities() {
     if (!entityToDelete) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/entities/${entityToDelete.id}`, {
+      console.log('🗑️ Deleting entity:', entityToDelete.name, 'ID:', entityToDelete.id);
+      
+      const response = await fetch(`http://localhost:3000/api/entities/${entityToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
       });
+      
+      console.log('📡 Delete response status:', response.status, response.ok);
       
       if (response.ok) {
         // Remove entity from local state
@@ -280,13 +302,18 @@ export default function Entities() {
         // Refresh entities to update stats
         fetchEntities();
       } else {
-        throw new Error('Failed to delete entity');
+        // Try to get error message from response
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || `Failed to delete entity (${response.status})`;
+        
+        console.error('❌ Delete failed:', response.status, errorMessage);
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error deleting entity:', error);
       import('sonner').then(({ toast }) => {
         toast.error('Failed to delete entity', {
-          description: 'Please try again later.'
+          description: error instanceof Error ? error.message : 'Please try again later.'
         });
       });
     } finally {

@@ -1,32 +1,57 @@
 import express from 'express';
-// Import removed - using empty data
+import { TransactionModel, EntityModel } from '../models/schemas';
 
 const router = express.Router();
 
-// Dashboard KPIs - now returns empty data structure
+// Dashboard KPIs - now returns data from MongoDB
 router.get('/kpis', async (req, res) => {
   try {
-    // Return empty KPI structure - replace with database queries
-    const emptyKPIs = {
+    // Calculate KPIs from MongoDB data
+    const totalTransactions = await TransactionModel.countDocuments();
+    const totalFeesEarned = await TransactionModel.aggregate([
+      { $group: { _id: null, total: { $sum: '$feeAmount' } } }
+    ]);
+    const totalReserves = await TransactionModel.aggregate([
+      { $group: { _id: null, total: { $sum: '$reserveAmount' } } }
+    ]);
+    
+    // Calculate portfolio statistics
+    const totalSuppliersCount = await EntityModel.countDocuments({ type: 'supplier' });
+    const totalCreditLimit = await EntityModel.aggregate([
+      { $match: { type: 'supplier' } },
+      { $group: { _id: null, total: { $sum: '$creditLimit' } } }
+    ]);
+    const totalUsedLimit = await EntityModel.aggregate([
+      { $match: { type: 'supplier' } },
+      { $group: { _id: null, total: { $sum: '$usedLimit' } } }
+    ]);
+
+    const feesEarned = totalFeesEarned[0]?.total || 0;
+    const reserves = totalReserves[0]?.total || 0;
+    const creditLimit = totalCreditLimit[0]?.total || 1; // Avoid division by zero
+    const usedLimit = totalUsedLimit[0]?.total || 0;
+    const portfolioUtilization = creditLimit > 0 ? (usedLimit / creditLimit) * 100 : 0;
+    
+    const kpis = {
       totalTransactions: {
-        value: 0,
-        change: 0,
+        value: totalTransactions,
+        change: 0, // You can calculate this based on previous period
         trend: 'up' as const
       },
       totalFeesEarned: {
-        value: 0,
+        value: feesEarned,
         change: 0,
         trend: 'up' as const,
         currency: 'USD'
       },
       totalReserves: {
-        value: 0,
+        value: reserves,
         change: 0,
         trend: 'up' as const,
         currency: 'USD'
       },
       portfolioUtilization: {
-        value: 0,
+        value: Math.round(portfolioUtilization * 100) / 100, // Round to 2 decimal places
         change: 0,
         trend: 'up' as const,
         unit: '%'
@@ -35,7 +60,7 @@ router.get('/kpis', async (req, res) => {
     
     res.json({
       success: true,
-      data: emptyKPIs,
+      data: kpis,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

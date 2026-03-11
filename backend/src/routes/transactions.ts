@@ -1,18 +1,27 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { broadcastNotification } from '../index';
-// Import removed - using empty data
+import { TransactionModel, ITransaction } from '../models/schemas';
+
+// Mock data as fallback
+import { mockTransactions } from '../../mockData';
 
 const router = express.Router();
-
-// In-memory storage for transactions (replace with database in production)
-let transactions: any[] = [];
-
-// Export transactions for cross-module access (temporary until database implementation)
-export { transactions };
 
 // Get all transactions - now returns stored transactions
 router.get('/', async (req, res) => {
   try {
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB not connected, using mock data');
+      return res.json({
+        success: true,
+        message: 'Transactions retrieved successfully (mock data)',
+        data: mockTransactions
+      });
+    }
+
+    const transactions = await TransactionModel.find().sort({ createdAt: -1 });
     res.json({
       success: true,
       message: 'Transactions retrieved successfully',
@@ -20,9 +29,11 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Get transactions error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
+    // Fallback to mock data on error
+    res.json({
+      success: true,
+      message: 'Transactions retrieved successfully (fallback to mock data)',
+      data: mockTransactions
     });
   }
 });
@@ -30,10 +41,10 @@ router.get('/', async (req, res) => {
 // Get recent transactions for dashboard
 router.get('/recent', async (req, res) => {
   try {
-    // Return recent transactions from stored data
-    const recentTransactions = transactions
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 10); // Get last 10 transactions
+    // Return recent transactions from database
+    const recentTransactions = await TransactionModel.find()
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     res.json({
       success: true,
@@ -82,6 +93,8 @@ const calculateDueDate = (invoiceDate: string, blDate: string, tenureDays: numbe
 router.post('/', async (req, res) => {
   try {
     const transactionData = req.body;
+    console.log('=== TRANSACTION CREATION DEBUG ===');
+    console.log('Received transaction data:', JSON.stringify(transactionData, null, 2));
     
     // Calculate due date based on financing tenure + BL or invoice date
     let calculatedDueDate = transactionData.dueDate;
@@ -114,31 +127,63 @@ router.post('/', async (req, res) => {
     const transactionId = `TXN-${timestamp.toString().slice(-6)}`;
     const invoiceId = `INV-${timestamp.toString().slice(-6)}-${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
     
-    // Create new transaction with generated IDs and timestamps
-    const newTransaction = {
-      id: timestamp.toString(),
+    // Ensure required fields are present
+    const requiredFields = {
+      supplierId: transactionData.supplierId,
+      supplierName: transactionData.supplierName,
+      buyerId: transactionData.buyerId,
+      buyerName: transactionData.buyerName,
+      invoiceNumber: transactionData.invoiceNumber,
+      invoiceDate: transactionData.invoiceDate,
+      buyerEmail: transactionData.buyerEmail,
+      invoiceValue: invoiceAmount,
+      invoiceAmount: invoiceAmount,
+      advanceRate: parseFloat(transactionData.advancePercentage) || 80,
+      advanceAmount: advanceAmount,
+      feeAmount: feeAmount,
+      reserveAmount: parseFloat(transactionData.reserveAmount) || 0,
+      netAmount: netAmount
+    };
+    
+    console.log('Required fields check:', requiredFields);
+    
+    // Check for missing required fields
+    const missingFields = Object.entries(requiredFields).filter(([key, value]) => 
+      value === undefined || value === null || value === ''
+    );
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields);
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+        missingFields: missingFields.map(([key]) => key)
+      });
+    }
+    
+    // Create new transaction document
+    const newTransaction = new TransactionModel({
       transactionId,
       invoiceId,
       ...transactionData,
-      invoiceAmount,
-      advanceAmount,
-      feeAmount,
-      netAmount,
+      ...requiredFields,
       dueDate: calculatedDueDate,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: transactionData.status || 'pending'
-    };
+      status: transactionData.status || 'pending',
+      currency: transactionData.currency || 'USD',
+      transactionType: transactionData.transactionType || 'factoring'
+    });
+    
+    console.log('Transaction document to save:', JSON.stringify(newTransaction.toObject(), null, 2));
 
-    // Store the transaction
-    transactions.push(newTransaction);
-    console.log(`Transaction stored: ${newTransaction.transactionId}, Invoice ID: ${newTransaction.invoiceId}`, newTransaction);
+    // Save to MongoDB
+    const savedTransaction = await newTransaction.save();
+    console.log(`✅ Transaction saved to MongoDB: ${savedTransaction.transactionId}, Invoice ID: ${savedTransaction.invoiceId}`);
 
     // Send real-time notification
     broadcastNotification({
       id: Date.now().toString(),
       title: 'New Transaction Created',
-      message: `Transaction ${newTransaction.transactionId} has been created for ${newTransaction.supplierName}`,
+      message: `Transaction ${savedTransaction.transactionId} has been created for ${savedTransaction.supplierName}`,
       type: 'success',
       timestamp: new Date().toISOString(),
       actionUrl: '/transactions'
@@ -147,13 +192,97 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Transaction created successfully',
-      data: newTransaction
+      data: savedTransaction
     });
-  } catch (error) {
-    console.error('Create transaction error:', error);
+  } catch (error: any) {
+    console.error('❌ Create transaction error:', error);
+    console.error('Error details:', {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack
+    });
+    
+    // Check if it's a validation error
+    if (error?.name === 'ValidationError') {
+      const validationErrors = Object.keys(error.errors || {}).map(key => ({
+        field: key,
+        message: error.errors[key]?.message
+      }));
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error?.message : 'Something went wrong'
+    });
+  }
+});
+
+// Delete transaction
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🗑️ Delete transaction request:', { id });
+    
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not connected - cannot delete transaction'
+      });
+    }
+    
+    // Find and delete the transaction
+    const deletedTransaction = await TransactionModel.findOneAndDelete({
+      $or: [
+        { transactionId: id },
+        { _id: mongoose.Types.ObjectId.isValid(id) ? id : null }
+      ]
+    });
+    
+    if (!deletedTransaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found'
+      });
+    }
+    
+    console.log('✅ Transaction deleted successfully:', {
+      id: deletedTransaction._id,
+      transactionId: deletedTransaction.transactionId
+    });
+    
+    // Broadcast notification about transaction deletion
+    broadcastNotification({
+      type: 'transaction_deleted',
+      title: 'Transaction Deleted',
+      message: `Transaction ${deletedTransaction.transactionId} has been deleted`,
+      timestamp: new Date(),
+      priority: 'normal'
+    });
+    
+    res.json({
+      success: true,
+      message: 'Transaction deleted successfully',
+      data: {
+        id: deletedTransaction._id,
+        transactionId: deletedTransaction.transactionId
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Delete transaction error:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error?.message : 'Something went wrong'
     });
   }
 });

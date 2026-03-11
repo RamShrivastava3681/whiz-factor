@@ -105,7 +105,7 @@ export function AdjustLimitsDialog({ open, onOpenChange, entity, onSuccess }: Ad
         updatedAt: new Date().toISOString()
       };
 
-      const response = await fetch(`http://localhost:3001/api/entities/${entity.id}`, {
+      const response = await fetch(`http://localhost:3000/api/entities/${entity.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

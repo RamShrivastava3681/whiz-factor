@@ -102,7 +102,7 @@ export default function InvoicePaymentDialog({ invoice, onPaymentRecorded, onClo
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/treasury/open-invoices/${invoice.id}/payment`, {
+      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,9 +249,6 @@ export default function InvoicePaymentDialog({ invoice, onPaymentRecorded, onClo
                     className={errors.amount ? 'border-red-500' : ''}
                   />
                   {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount}</p>}
-                  <p className="text-sm text-gray-500 mt-1">
-                    Maximum: ${invoice.remainingAmount.toLocaleString()}
-                  </p>
                 </div>
 
                 <div>

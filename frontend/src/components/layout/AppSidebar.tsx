@@ -39,15 +39,23 @@ export function AppSidebar() {
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Landmark className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center p-1">
+              <img 
+                src="/logo-vertical-light (2).png" 
+                alt="Whizunik Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="font-semibold text-sm">Whizunik Factoring</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
-            <Landmark className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center mx-auto p-1">
+            <img 
+              src="/logo-vertical-light (2).png" 
+              alt="Whizunik Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
         )}
       </div>

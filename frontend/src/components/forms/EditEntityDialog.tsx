@@ -39,7 +39,7 @@ export function EditEntityDialog({ open, onOpenChange, entity, onSuccess }: Edit
     setIsSubmitting(true);
     
     try {
-      const response = await fetch(`http://localhost:3001/api/entities/${entity.id}`, {
+      const response = await fetch(`http://localhost:3000/api/entities/${entity.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

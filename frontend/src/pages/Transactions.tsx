@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, Filter, DollarSign, Calendar, User } from 'lucide-react';
+import { FileText, Plus, Search, Filter, DollarSign, Calendar, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,18 +7,69 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AddTransactionDialog } from '@/components/forms/AddTransactionDialog';
 import { mockTransactions } from '@/data/demoData';
+import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function Transactions() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+
+  // Delete transaction function
+  const handleDeleteTransaction = async (transactionId: string) => {
+    try {
+      setDeleteLoading(transactionId);
+      
+      const response = await fetch(`http://localhost:3000/api/transactions/${transactionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Success",
+          description: "Transaction deleted successfully",
+          variant: "default"
+        });
+        
+        // Refresh transactions list
+        await fetchTransactions();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to delete transaction');
+      }
+    } catch (error) {
+      console.error('Delete transaction error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete transaction',
+        variant: "destructive"
+      });
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
 
   // Load transactions from API
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/transactions', {
+      const response = await fetch('http://localhost:3000/api/transactions', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -226,18 +277,19 @@ export default function Transactions() {
                 <TableHead>Financial</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     Loading transactions...
                   </TableCell>
                 </TableRow>
               ) : filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12">
+                  <TableCell colSpan={7} className="text-center py-12">
                     <div className="space-y-3">
                       <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
                       <div>
@@ -312,6 +364,37 @@ export default function Transactions() {
                       <p className="text-xs text-muted-foreground">
                         {new Date(transaction.createdAt).toLocaleDateString()}
                       </p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            disabled={deleteLoading === (transaction.transactionId || transaction.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete transaction {transaction.transactionId || transaction.id}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteTransaction(transaction.transactionId || transaction.id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              {deleteLoading === (transaction.transactionId || transaction.id) ? 'Deleting...' : 'Delete'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))

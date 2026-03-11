@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Landmark } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,8 +61,12 @@ export function Login() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo and Brand */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 mb-4">
-            <Landmark className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 mb-4 p-2">
+            <img 
+              src="/logo-vertical-light (2).png" 
+              alt="Whizunik Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Whizunik Factoring</h1>
           <p className="text-white/70">Sign in to your account</p>
@@ -146,15 +150,6 @@ export function Login() {
                 )}
               </Button>
             </form>
-
-            {/* Demo Credentials Info */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm font-medium text-blue-900 mb-2">Demo Credentials:</p>
-              <div className="space-y-1 text-xs text-blue-700">
-                <p><span className="font-medium">Email:</span> sankalp@whizunik.com</p>
-                <p><span className="font-medium">Password:</span> Sankalp@8jan1983</p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 

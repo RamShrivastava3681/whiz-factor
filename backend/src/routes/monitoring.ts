@@ -7,8 +7,26 @@ import {
   TransactionStatus,
   ApiResponse
 } from '../models/index';
+import { TransactionModel, EntityModel } from '../models/schemas';
 
 const router = express.Router();
+
+// Shared data store for incoming payments (to be accessed by treasury)
+let sharedIncomingPayments: any[] = [];
+// Import openInvoices from treasury to update invoice status
+let openInvoices: any[] = [];
+
+// Note: Due to circular imports, we'll manage this through a function call
+const getOpenInvoices = () => {
+  try {
+    // Dynamic import to avoid circular dependency
+    const { openInvoices: treasuryOpenInvoices } = require('./treasury');
+    return treasuryOpenInvoices;
+  } catch (error) {
+    console.warn('Could not import openInvoices from treasury, using local array');
+    return openInvoices;
+  }
+};
 
 // In-memory storage for monitoring data (in production, this would be a database)
 let transactionMonitoring: TransactionMonitoring[] = [];
@@ -793,5 +811,122 @@ router.post('/alerts/bulk-resolve', (req, res) => {
     });
   }
 });
+
+// Send reserve details to treasury for processing
+router.post('/send-to-treasury', async (req, res) => {
+  try {
+    const { invoiceId, supplierId, supplierName, reserveAmount, reference, dueDate } = req.body;
+    
+    console.log('📨 Sending reserve details to treasury:', { invoiceId, supplierId, supplierName, reserveAmount });
+    
+    // Validate required fields
+    if (!invoiceId || !supplierId || !supplierName || !reserveAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: invoiceId, supplierId, supplierName, reserveAmount'
+      });
+    }
+    
+    // Get actual supplier bank details from database
+    const supplier = await EntityModel.findOne({ entityId: supplierId, type: 'supplier' });
+    
+    const supplierBankDetails = supplier ? {
+      beneficiary: supplier.name || supplier.name,
+      bank: 'Bank Name', // Need to add bank field to schema
+      branch: 'Branch', // Need to add branch field to schema  
+      accountNumber: 'Account Number', // Need to add accountNumber field to schema
+      ifscCode: 'IFSC Code', // Need to add ifscCode field to schema
+      swiftCode: undefined,
+      currency: 'USD'
+    } : {
+      beneficiary: supplierName,
+      bank: 'Bank details not available',
+      branch: 'N/A',
+      accountNumber: 'N/A',
+      ifscCode: 'N/A',
+      currency: 'USD'
+    };
+    
+    // Create incoming payment request with detailed breakdown
+    const incomingPaymentId = `INC-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    
+    // Find the original invoice for detailed information and update its status
+    const invoicesArray = getOpenInvoices();
+    const invoice = invoicesArray.find(inv => inv.id === invoiceId);
+    
+    // Calculate payment breakdown
+    const paymentBreakdown = invoice ? {
+      invoiceAmount: invoice.invoiceAmount || reserveAmount * 5, // Estimate if not available
+      paidAmount: invoice.paidAmount || 0,
+      remainingAmount: invoice.remainingAmount || 0,
+      reservePercentage: 20, // Standard 20% reserve
+      transactionFee: Math.round((invoice.invoiceAmount || reserveAmount * 5) * 0.025), // 2.5% transaction fee (already paid)
+      processingFee: Math.round((invoice.invoiceAmount || reserveAmount * 5) * 0.015), // 1.5% processing fee (already paid)
+      lateFees: invoice.lateFees || 0,
+      netReserveAmount: reserveAmount + (invoice.lateFees || 0) // Reserve plus any late fees
+    } : {
+      invoiceAmount: reserveAmount * 5,
+      paidAmount: 0,
+      remainingAmount: reserveAmount * 4,
+      reservePercentage: 20,
+      transactionFee: Math.round(reserveAmount * 5 * 0.025),
+      processingFee: Math.round(reserveAmount * 5 * 0.015),
+      lateFees: 0,
+      netReserveAmount: reserveAmount
+    };
+    
+    // Note: In a real implementation, we would add this to a shared database
+    // For now, we'll simulate the API call and let the treasury endpoint handle it
+    const incomingPaymentData = {
+      id: incomingPaymentId,
+      supplierId,
+      supplierName,
+      reserveAmount,
+      currency: 'USD',
+      invoiceId,
+      invoiceReference: reference || `REF-${invoiceId}`,
+      dueDate: dueDate || new Date().toISOString(),
+      status: 'pending_reserve',
+      bankDetails: supplierBankDetails,
+      paymentBreakdown,
+      sentAt: new Date().toISOString(),
+      notes: 'Reserve payment request sent from monitoring system'
+    };
+    
+    // TODO: In a real system, this would be stored in a shared database
+    // For this demo, we'll add it to the shared array that treasury can access
+    sharedIncomingPayments.push(incomingPaymentData);
+    
+    // Update the invoice status to 'pending_reserves' using the same array
+    const invoiceIndex = invoicesArray.findIndex(inv => inv.id === invoiceId);
+    if (invoiceIndex !== -1) {
+      invoicesArray[invoiceIndex].status = 'pending_reserves';
+      console.log(`📝 Updated invoice ${invoiceId} status to 'pending_reserves'`);
+    }
+    
+    console.log(`✅ Created incoming payment request: ${incomingPaymentId} for supplier ${supplierName}`);
+    
+    res.json({
+      success: true,
+      message: 'Reserve details sent to treasury successfully',
+      data: {
+        incomingPaymentId,
+        invoiceId,
+        supplierName,
+        reserveAmount
+      }
+    });
+    
+  } catch (error) {
+    console.error('Send to treasury error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send reserve details to treasury'
+    });
+  }
+});
+
+// Export the shared incoming payments array for treasury to access
+export { sharedIncomingPayments };
 
 export default router;

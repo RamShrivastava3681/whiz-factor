@@ -99,7 +99,7 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/entities/suppliers/list', {
+      const response = await fetch('http://localhost:3000/api/entities/suppliers/list', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -108,6 +108,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       if (response.ok) {
         const result = await response.json();
         setSuppliers(result.data || []);
+      } else {
+        console.error('API response not ok:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -124,17 +126,22 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       return;
     }
 
-    const supplier = suppliers.find(s => s.id === selectedSupplierId);
-    if (!supplier) return;
+    const supplier = suppliers.find(s => (s.id || s._id) === selectedSupplierId);
+    if (!supplier) {
+      console.error('Supplier not found for ID:', selectedSupplierId);
+      toast.error('Selected supplier not found. Please try again.');
+      return;
+    }
 
-    // Check if supplier is already added
-    if (formData.supplierLimits.some(sl => sl.supplierId === selectedSupplierId)) {
+    // Check if supplier is already added - handle both id and _id
+    const supplierId = supplier.id || supplier._id;
+    if (formData.supplierLimits.some(sl => sl.supplierId === supplierId)) {
       toast.error('This supplier is already linked to this buyer');
       return;
     }
 
     const newSupplierLimit: SupplierLimit = {
-      supplierId: selectedSupplierId,
+      supplierId: supplierId,
       supplierName: supplier.name || supplier.legalName,
       transactionLimit: parseFloat(transactionLimit)
     };
@@ -168,7 +175,7 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       ), 0);
       
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3001/api/entities', {
+      const response = await fetch('http://localhost:3000/api/entities', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -478,14 +485,33 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
                         <SelectValue placeholder="Choose a supplier" />
                       </SelectTrigger>
                       <SelectContent>
-                        {suppliers
-                          .filter(supplier => !formData.supplierLimits.some(sl => sl.supplierId === supplier.id))
-                          .map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name || supplier.legalName}
-                            </SelectItem>
-                          ))
-                        }
+                        {suppliers.length === 0 ? (
+                          <SelectItem value="no-suppliers" disabled>
+                            No suppliers available
+                          </SelectItem>
+                        ) : (
+                          suppliers
+                            .filter(supplier => {
+                              const supplierId = supplier.id || supplier._id;
+                              return !formData.supplierLimits.some(sl => sl.supplierId === supplierId);
+                            })
+                            .map((supplier) => {
+                              const supplierId = supplier.id || supplier._id;
+                              const supplierName = supplier.name || supplier.legalName || 'Unknown Supplier';
+                              
+                              if (!supplierId) {
+                                console.error('Supplier missing ID:', supplier);
+                                return null;
+                              }
+                              
+                              return (
+                                <SelectItem key={supplierId} value={supplierId}>
+                                  {supplierName}
+                                </SelectItem>
+                              );
+                            })
+                            .filter(Boolean)
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

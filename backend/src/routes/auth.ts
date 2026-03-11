@@ -7,8 +7,8 @@ const router = express.Router();
 
 // Mock user for demo purposes
 const DEMO_USER = {
-  email: 'sankalp@whizunik.com',
-  password: 'Sankalp@8jan1983', // In production, this would be hashed
+  email: process.env.ADMIN_EMAIL || 'admin@whizunik.com',
+  password: process.env.ADMIN_PASSWORD || 'defaultpassword', // In production, this would be hashed
   name: 'Sankalp',
   role: 'admin',
   id: '1'

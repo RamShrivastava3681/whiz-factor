@@ -30,7 +30,6 @@ interface ReportConfiguration {
     customFilters?: Record<string, any>;
   };
   outputFormat: 'pdf' | 'csv' | 'excel' | 'json';
-  isScheduled: boolean;
   scheduleConfig?: {
     frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly';
     dayOfWeek?: number;
@@ -112,7 +111,6 @@ export default function Reports() {
         dateRange: { from: '2026-01-01', to: '2026-01-31' }
       },
       outputFormat: report.outputFormat,
-      isScheduled: report.isScheduled,
       scheduleConfig: report.scheduleConfig,
       isActive: report.isActive,
       createdAt: report.createdAt,
@@ -123,43 +121,8 @@ export default function Reports() {
     
     setReportConfigs(transformedReports);
     
-    // Mock report executions
-    const mockExecutions = [
-      {
-        id: 'EXE-001',
-        reportId: 'RPT-001',
-        reportName: 'Monthly Transaction Summary',
-        status: 'completed' as const,
-        startedAt: '2026-01-01T09:00:00Z',
-        completedAt: '2026-01-01T09:05:00Z',
-        duration: 300,
-        fileSize: 2048000,
-        downloadUrl: '/reports/monthly-summary-jan2026.pdf',
-        parameters: { month: '2026-01', format: 'pdf' },
-        executedBy: 'system@whizunik.com'
-      },
-      {
-        id: 'EXE-002',
-        reportId: 'RPT-002',
-        reportName: 'Risk Assessment Report',
-        status: 'running' as const,
-        startedAt: '2026-01-05T08:00:00Z',
-        parameters: { week: '2026-W01', format: 'excel' },
-        executedBy: 'risk.manager@whizunik.com'
-      },
-      {
-        id: 'EXE-003',
-        reportId: 'RPT-001',
-        reportName: 'Monthly Transaction Summary',
-        status: 'failed' as const,
-        startedAt: '2025-12-31T23:55:00Z',
-        completedAt: '2025-12-31T23:58:00Z',
-        duration: 180,
-        errorMessage: 'Insufficient data for December 2025',
-        parameters: { month: '2025-12', format: 'pdf' },
-        executedBy: 'system@whizunik.com'
-      }
-    ];
+    // Mock report executions - cleared as requested
+    const mockExecutions: ReportExecution[] = [];
     
     setReportExecutions(mockExecutions);
     
@@ -167,41 +130,50 @@ export default function Reports() {
     const mockTemplatesData = [
       {
         id: 'TPL-001',
-        name: 'Transaction Summary Template',
-        description: 'Monthly summary of all transactions with volume and performance metrics',
+        name: 'Transaction Summary Report',
+        description: 'Comprehensive summary of all transactions with volumes, status breakdown, and key metrics',
         type: 'operational' as const,
-        category: 'Monthly Reports',
+        category: 'Transaction Reports',
         parameters: [
-          { name: 'month', type: 'date' as const, label: 'Report Month', required: true },
-          { name: 'currency', type: 'select' as const, label: 'Base Currency', required: false, options: ['USD', 'EUR', 'GBP'], defaultValue: 'USD' }
-        ],
-        supportedFormats: ['pdf', 'excel'] as ('pdf' | 'excel')[],
-        isActive: true
-      },
-      {
-        id: 'TPL-002',
-        name: 'Risk Analysis Template',
-        description: 'Comprehensive risk assessment across all active positions',
-        type: 'risk' as const,
-        category: 'Risk Management',
-        parameters: [
-          { name: 'riskThreshold', type: 'number' as const, label: 'Risk Threshold', required: false, defaultValue: 70 },
-          { name: 'includeHistorical', type: 'select' as const, label: 'Include Historical Data', required: false, options: ['Yes', 'No'], defaultValue: 'Yes' }
+          { name: 'startDate', type: 'date' as const, label: 'Start Date', required: true },
+          { name: 'endDate', type: 'date' as const, label: 'End Date', required: true },
+          { name: 'status', type: 'multiselect' as const, label: 'Transaction Status', required: false, options: ['pending', 'approved', 'settled', 'overdue', 'rejected'] },
+          { name: 'groupBy', type: 'select' as const, label: 'Group By', required: false, options: ['status', 'supplier', 'buyer', 'date'], defaultValue: 'status' },
+          { name: 'includeCharts', type: 'select' as const, label: 'Include Charts', required: false, options: ['Yes', 'No'], defaultValue: 'Yes' }
         ],
         supportedFormats: ['pdf', 'excel', 'csv'] as ('pdf' | 'excel' | 'csv')[],
         isActive: true
       },
       {
-        id: 'TPL-003',
-        name: 'Compliance Audit Template',
-        description: 'Regulatory compliance status and audit trail report',
-        type: 'compliance' as const,
-        category: 'Compliance',
+        id: 'TPL-002',
+        name: 'Open and Closed Invoices Report',
+        description: 'Detailed analysis of open invoices (pending payment) and closed invoices (completed/settled)',
+        type: 'financial' as const,
+        category: 'Invoice Management',
         parameters: [
-          { name: 'auditPeriod', type: 'date' as const, label: 'Audit Period', required: true },
-          { name: 'regulations', type: 'multiselect' as const, label: 'Regulations', required: false, options: ['Basel III', 'AML', 'GDPR'] }
+          { name: 'startDate', type: 'date' as const, label: 'Start Date', required: true },
+          { name: 'endDate', type: 'date' as const, label: 'End Date', required: true },
+          { name: 'invoiceStatus', type: 'select' as const, label: 'Invoice Status', required: true, options: ['open', 'closed', 'both'], defaultValue: 'both' },
+          { name: 'agingAnalysis', type: 'select' as const, label: 'Include Aging Analysis', required: false, options: ['Yes', 'No'], defaultValue: 'Yes' },
+          { name: 'currencyFilter', type: 'select' as const, label: 'Currency Filter', required: false, options: ['USD', 'EUR', 'GBP', 'all'], defaultValue: 'all' }
         ],
-        supportedFormats: ['pdf'] as ('pdf')[],
+        supportedFormats: ['pdf', 'excel'] as ('pdf' | 'excel')[],
+        isActive: true
+      },
+      {
+        id: 'TPL-003',
+        name: 'Buyer & Supplier Credit Report',
+        description: 'Complete listing of buyers and suppliers with their credit limits, utilized amounts, and remaining credit capacity',
+        type: 'risk' as const,
+        category: 'Credit Management',
+        parameters: [
+          { name: 'entityType', type: 'select' as const, label: 'Entity Type', required: true, options: ['buyers', 'suppliers', 'both'], defaultValue: 'both' },
+          { name: 'riskLevel', type: 'select' as const, label: 'Risk Level Filter', required: false, options: ['all', 'high', 'medium', 'low'], defaultValue: 'all' },
+          { name: 'creditUtilization', type: 'select' as const, label: 'Credit Utilization', required: false, options: ['all', 'over_80', 'over_90', 'maxed_out'], defaultValue: 'all' },
+          { name: 'sortBy', type: 'select' as const, label: 'Sort By', required: false, options: ['name', 'creditLimit', 'utilization', 'riskScore'], defaultValue: 'name' },
+          { name: 'includeTransactionHistory', type: 'select' as const, label: 'Include Transaction History', required: false, options: ['Yes', 'No'], defaultValue: 'Yes' }
+        ],
+        supportedFormats: ['pdf', 'excel', 'csv'] as ('pdf' | 'excel' | 'csv')[],
         isActive: true
       }
     ];
@@ -252,21 +224,7 @@ export default function Reports() {
     }
   };
 
-  const handleScheduleToggle = async (reportId: string, isScheduled: boolean) => {
-    try {
-      const response = await fetch(`/api/reports/configurations/${reportId}/schedule`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isScheduled })
-      });
-      
-      if (response.ok) {
-        fetchReportsData();
-      }
-    } catch (error) {
-      console.error('Error updating schedule:', error);
-    }
-  };
+
 
   const handleDownload = async (executionId: string) => {
     try {
@@ -341,7 +299,7 @@ export default function Reports() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Generate, schedule, and manage operational reports</p>
+          <p className="text-sm text-muted-foreground">Generate and manage operational reports</p>
         </div>
         <Button onClick={() => setCreateReportOpen(true)} className="gap-2">
           <FileText className="w-4 h-4" />
@@ -354,7 +312,6 @@ export default function Reports() {
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="configured">Configured Reports</TabsTrigger>
           <TabsTrigger value="executions">Execution History</TabsTrigger>
-          <TabsTrigger value="scheduled">Scheduled Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="templates" className="space-y-4">
@@ -491,7 +448,6 @@ export default function Reports() {
                     <TableHead>Template</TableHead>
                     <TableHead>Output Format</TableHead>
                     <TableHead>Last Run</TableHead>
-                    <TableHead>Scheduled</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -516,12 +472,6 @@ export default function Reports() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {report.lastRun ? new Date(report.lastRun).toLocaleDateString() : 'Never'}
-                      </TableCell>
-                      <TableCell>
-                        <Switch 
-                          checked={report.isScheduled} 
-                          onCheckedChange={(checked) => handleScheduleToggle(report.id, checked)}
-                        />
                       </TableCell>
                       <TableCell>
                         <Badge variant={report.isActive ? 'default' : 'secondary'}>
@@ -626,68 +576,6 @@ export default function Reports() {
                       </TableRow>
                     );
                   })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="scheduled" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduled Reports</CardTitle>
-              <CardDescription>Reports configured for automatic execution</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Report Name</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Next Run</TableHead>
-                    <TableHead>Recipients</TableHead>
-                    <TableHead>Last Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reportConfigs.filter(r => r.isScheduled).map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{report.name}</div>
-                          <Badge variant={getTypeBadge(report.type).variant} className="text-xs">
-                            {getTypeBadge(report.type).label}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {report.scheduleConfig?.frequency || 'Not configured'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {report.nextRun ? new Date(report.nextRun).toLocaleString() : 'Not scheduled'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {report.scheduleConfig?.recipients?.length || 0} recipients
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="default">Active</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Switch 
-                            checked={report.isScheduled}
-                            onCheckedChange={(checked) => handleScheduleToggle(report.id, checked)}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
                 </TableBody>
               </Table>
             </CardContent>

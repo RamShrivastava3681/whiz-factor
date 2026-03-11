@@ -27,7 +27,7 @@ export function EntityDetailsDialog({ open, onOpenChange, entity }: EntityDetail
     setLoadingBuyers(true);
     try {
       // Fetch all buyers and filter those that have this supplier assigned
-      const response = await fetch('http://localhost:3001/api/entities/buyers/list', {
+      const response = await fetch('http://localhost:3000/api/entities/buyers/list', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -398,6 +398,79 @@ export function EntityDetailsDialog({ open, onOpenChange, entity }: EntityDetail
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Additional Account Details</label>
                     <p className="text-sm mt-1 p-2 bg-muted rounded">{entity.additionalAccDetail}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Supplier Relationships - For Buyers Only */}
+          {entity.type === 'buyer' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Supplier Relationships
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {entity.supplierLimits && entity.supplierLimits.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {entity.supplierLimits.map((supplierLimit: any, index: number) => (
+                        <div key={supplierLimit.supplierId || index} className="p-4 border rounded-lg bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm">{supplierLimit.supplierName}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              Active
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Transaction Limit:</span>
+                              <span className="font-semibold">{formatCurrency(supplierLimit.transactionLimit || 0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Used Amount:</span>
+                              <span className="text-warning font-medium">{formatCurrency(0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Available:</span>
+                              <span className="text-success font-medium">{formatCurrency(supplierLimit.transactionLimit || 0)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3">
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-primary rounded-full h-2 transition-all duration-300"
+                                style={{ width: "0%" }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <TrendingUp className="h-4 w-4 text-blue-600 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-blue-800">Total Credit Facility</p>
+                          <p className="text-blue-700 mt-1">
+                            This buyer has a total credit facility of {formatCurrency(entity.supplierLimits.reduce((sum: number, sl: any) => sum + (parseFloat(sl.transactionLimit) || 0), 0))} 
+                            from {entity.supplierLimits.length} supplier{entity.supplierLimits.length !== 1 ? 's' : ''}.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No supplier limits assigned to this buyer yet</p>
+                    <p className="text-xs mt-1">Edit this buyer to add supplier relationships and transaction limits</p>
                   </div>
                 )}
               </CardContent>

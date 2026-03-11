@@ -1,0 +1,13 @@
+{
+  "supplierId": "SUPPLIER-950486",
+  "amount": 76685,
+  "transactionIds": ["TXN-061991"],
+  "bankDetails": {
+    "beneficiary": "Naresh",
+    "bank": "bob",
+    "branch": "df",
+    "accountNumber": "963852147",
+    "ifscCode": "BOB12345",
+    "currency": "USD"
+  }
+}

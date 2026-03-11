@@ -14,7 +14,7 @@ export function AddSupplierDialog({ open, onOpenChange }: AddSupplierDialogProps
       console.log('Supplier data:', data);
       
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3001/api/entities', {
+      const response = await fetch('http://localhost:3000/api/entities', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -140,7 +140,7 @@ export function useNotifications() {
     fetchNotifications();
     
     // Set up WebSocket for real-time notifications
-    const wsUrl = `ws://localhost:3001/notifications`;
+    const wsUrl = `ws://localhost:3000/notifications`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
