@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { XCircle, AlertTriangle, CheckCircle, Clock, DollarSign, TrendingUp, AlertCircle, FileText, Users2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { createApiUrl, getApiHeaders } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 import { format } from 'date-fns';
 import LateFeeHandlingDialog from './LateFeeHandlingDialog';
 
@@ -856,7 +857,7 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Due Date:</span>
                     <span className={invoice.agingDays > 0 ? 'text-red-600 font-medium' : 'text-gray-900'}>
-                      {format(new Date(invoice.dueDate), 'MMM dd, yyyy')}
+                      {formatDate(invoice.dueDate, format(new Date(invoice.dueDate), 'MMM dd, yyyy'))}
                     </span>
                   </div>
                   

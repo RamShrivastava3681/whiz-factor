@@ -672,7 +672,7 @@ export default function Treasury() {
                         <TableCell>
                           <div className="space-y-1">
                             <p className="font-medium">
-                              {new Date(invoice.dueDate).toLocaleDateString()}
+                              {formatDate(invoice.dueDate)}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Funded: {invoice.fundingDate}
@@ -1099,10 +1099,10 @@ export default function Treasury() {
                         <TableCell>
                           <div className="space-y-1">
                             <p className="font-medium">
-                              {new Date(payment.dueDate).toLocaleDateString()}
+                              {formatDate(payment.dueDate)}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {Math.ceil((new Date(payment.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
+                              {getDaysDifference(payment.dueDate)} days
                             </p>
                           </div>
                         </TableCell>
@@ -1494,7 +1494,7 @@ export default function Treasury() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Due Date</p>
-                      <p className="font-medium">{new Date(selectedIncomingPayment.dueDate).toLocaleDateString()}</p>
+                      <p className="font-medium">{formatDate(selectedIncomingPayment.dueDate)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AddTransactionDialog } from '@/components/forms/AddTransactionDialog';
 import { mockTransactions } from '@/data/demoData';
 import { createApiUrl, getApiHeaders } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -330,7 +331,7 @@ export default function Transactions() {
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{transaction.invoiceNumber}</p>
                         <p className="text-xs text-muted-foreground">
-                          Due: {new Date(transaction.dueDate).toLocaleDateString()}
+                          Due: {formatDate(transaction.dueDate)}
                         </p>
                         {transaction.tenureDays && (
                           <p className="text-xs text-blue-600">

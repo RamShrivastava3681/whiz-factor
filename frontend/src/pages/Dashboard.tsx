@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HelpTrigger } from '@/components/DashboardHelpSystem';
 import { mockDashboardKPIs } from '@/data/demoData';
 import { createApiUrl, getApiHeaders } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 
 interface DashboardKPIs {
   totalTransactions: { value: number; change: number; trend: 'up' | 'down' };
@@ -250,7 +251,7 @@ export default function Dashboard() {
                           {alert.metadata.lateFees && (
                             <span>Late Fees: ${alert.metadata.lateFees.toLocaleString()}</span>
                           )}
-                          <span>Due: {new Date(alert.metadata.dueDate).toLocaleDateString()}</span>
+                          <span>Due: {formatDate(alert.metadata.dueDate)}</span>
                         </div>
                       </div>
                     </div>

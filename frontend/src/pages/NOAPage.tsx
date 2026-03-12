@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Download, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { createApiUrl } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 
 interface NOAData {
   noaData: {
@@ -389,8 +390,8 @@ export function NOAPage() {
             <tbody>
               <tr>
                 <td className="border border-gray-900 p-3">{noaData.transaction.invoiceNumber}</td>
-                <td className="border border-gray-900 p-3">{new Date(noaData.transaction.invoiceDate).toLocaleDateString()}</td>
-                <td className="border border-gray-900 p-3">{new Date(noaData.transaction.dueDate).toLocaleDateString()}</td>
+                <td className="border border-gray-900 p-3">{formatDate(noaData.transaction.invoiceDate)}</td>
+                <td className="border border-gray-900 p-3">{formatDate(noaData.transaction.dueDate)}</td>
                 <td className="border border-gray-900 p-3">
                   {noaData.transaction.currency} {parseFloat(noaData.transaction.invoiceAmount).toLocaleString()}
                 </td>

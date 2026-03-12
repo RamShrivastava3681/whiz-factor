@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import InvoicePaymentDialog from '@/components/forms/InvoicePaymentDialog';
 import InvoiceClosureDialog from '@/components/forms/InvoiceClosureDialog';
 import { createApiUrl, getApiHeaders } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 
 interface TransactionMonitoring {
   id: string;
@@ -1092,7 +1093,7 @@ export default function Monitoring() {
                             <div className={`text-sm font-medium ${
                               invoice.agingDays > 0 ? 'text-red-600' : ''
                             }`}>
-                              {new Date(invoice.dueDate).toLocaleDateString()}
+                              {formatDate(invoice.dueDate)}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1197,7 +1198,7 @@ export default function Monitoring() {
                                     `Amount: $${invoice.invoiceAmount?.toLocaleString() || 'N/A'}`,
                                     `Remaining: $${invoice.remainingAmount?.toLocaleString() || 'N/A'}`,
                                     `Reserves: $${(invoice.reserves || 0).toLocaleString()} (20%)`,
-                                    `Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`,
+                                    `Due Date: ${formatDate(invoice.dueDate)}`,
                                     `Status: ${invoice.status.toUpperCase()}`,
                                     invoice.agingDays > 0 ? `Overdue: ${invoice.agingDays} days` : null,
                                     invoice.lateFees ? `Late Fees: $${invoice.lateFees.toLocaleString()}` : null

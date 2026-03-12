@@ -82,7 +82,14 @@ export const kpiData: KPIData = {
 // Get recent transactions
 export const getRecentTransactions = (limit: number = 10): Transaction[] => {
   return [...transactions]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter(t => t.createdAt) // Filter out items without valid createdAt
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      // Check for invalid dates
+      if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+      return dateB.getTime() - dateA.getTime();
+    })
     .slice(0, limit);
 };
 
