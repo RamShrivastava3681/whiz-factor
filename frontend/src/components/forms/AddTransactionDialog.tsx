@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { createApiUrl, getApiHeaders } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 
 interface AddTransactionDialogProps {
   open: boolean;
@@ -1199,9 +1200,9 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">
                   {formData.useBLDateForCalculation && formData.blDate
-                    ? `BL Date (${new Date(formData.blDate).toLocaleDateString('en-GB')}) will be used as base date for calculations`
+                    ? `BL Date (${formatDate(formData.blDate)}) will be used as base date for calculations`
                     : formData.useInvoiceDateForCalculation && formData.invoiceDate
-                    ? `Invoice Date (${new Date(formData.invoiceDate).toLocaleDateString('en-GB')}) will be used as base date for calculations`
+                    ? `Invoice Date (${formatDate(formData.invoiceDate)}) will be used as base date for calculations`
                     : 'Select dates above to enable calculation preferences'
                   }
                 </p>

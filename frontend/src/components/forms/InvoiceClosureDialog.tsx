@@ -558,7 +558,7 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
                             <div>
                               <div className="font-medium">${payment.amount?.toLocaleString()}</div>
                               <div className="text-sm text-muted-foreground">
-                                {new Date(payment.paidAt).toLocaleDateString()} - {payment.paidBy || 'Unknown'}
+                                {formatDate(payment.paidAt)} - {payment.paidBy || 'Unknown'}
                               </div>
                             </div>
                             <div className="text-right">
@@ -615,7 +615,7 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
                             <div className="flex justify-between">
                               <span className="text-sm text-muted-foreground">Released At:</span>
                               <span className="text-sm">
-                                {new Date(closureReport.reserveReleasedAt).toLocaleDateString()}
+                                {formatDate(closureReport.reserveReleasedAt)}
                               </span>
                             </div>
                             <div className="flex justify-between">

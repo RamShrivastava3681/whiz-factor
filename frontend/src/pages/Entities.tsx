@@ -667,7 +667,7 @@ export default function Entities() {
                     <div className="space-y-1">
                       <p className="text-sm">
                         {entity.lastTransaction 
-                          ? new Date(entity.lastTransaction).toLocaleDateString()
+                          ? formatDate(entity.lastTransaction)
                           : 'No transactions'
                         }
                       </p>

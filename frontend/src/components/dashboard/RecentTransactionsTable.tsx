@@ -1,5 +1,5 @@
 import { getRecentTransactions, formatCurrency, getStatusColor } from '@/data/mockData';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { FileText, ArrowRight, Mail, Eye, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,9 +29,16 @@ export function RecentTransactionsTable() {
         const result = await response.json();
         const data = result.data || [];
         // Sort by creation date and take last 8
-        const sorted = data.sort((a: any, b: any) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ).slice(0, 8);
+        const sorted = data
+          .filter(item => item.createdAt) // Filter out items without valid createdAt
+          .sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            // Check for invalid dates
+            if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+            return dateB.getTime() - dateA.getTime();
+          })
+          .slice(0, 8);
         setTransactions(sorted);
       }
     } catch (error) {
@@ -196,7 +203,7 @@ export function RecentTransactionsTable() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <span className="text-sm text-muted-foreground">
-                      {new Date(txn.createdAt).toLocaleDateString()}
+                      {formatDate(txn.createdAt)}
                     </span>
                   </td>
                 </tr>
