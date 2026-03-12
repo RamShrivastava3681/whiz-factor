@@ -160,7 +160,7 @@ export function useNotifications() {
           title: notification.title,
           message: notification.message,
           type: notification.type || 'info',
-          timestamp: notification.timestamp || new Date().toISOString(),
+          timestamp: notification.createdAt || notification.timestamp || new Date().toISOString(),
           read: false,
           actionUrl: notification.actionUrl
         };
