@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Calendar, FileText, Play, Eye, Settings, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { mockReports } from '@/data/demoData';
+import { createApiUrl } from '@/config/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -206,7 +207,7 @@ export default function Reports() {
 
   const handleExecuteReport = async (reportId: string, parameters?: Record<string, any>) => {
     try {
-      const response = await fetch(`/api/reports/configurations/${reportId}/execute`, {
+      const response = await fetch(createApiUrl(`/reports/configurations/${reportId}/execute`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -228,7 +229,7 @@ export default function Reports() {
 
   const handleDownload = async (executionId: string) => {
     try {
-      const response = await fetch(`/api/reports/executions/${executionId}/download`);
+      const response = await fetch(createApiUrl(`/reports/executions/${executionId}/download`));
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

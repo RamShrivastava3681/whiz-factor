@@ -525,7 +525,7 @@ export default function Monitoring() {
 
   const handleMarkAsRead = async (alertId: string) => {
     try {
-      const response = await fetch(`/api/monitoring/alerts/${alertId}/read`, {
+      const response = await fetch(createApiUrl(`/monitoring/alerts/${alertId}/read`), {
         method: 'PUT'
       });
       

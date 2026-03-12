@@ -118,7 +118,7 @@ export default function FeeLimits() {
 
   const handleSaveFee = async () => {
     try {
-      const url = editingFee ? `/api/fee-limits/fees/${editingFee.id}` : '/api/fee-limits/fees';
+      const url = editingFee ? createApiUrl(`/fee-limits/fees/${editingFee.id}`) : createApiUrl('/fee-limits/fees');
       const method = editingFee ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -140,7 +140,7 @@ export default function FeeLimits() {
 
   const handleSaveLimit = async () => {
     try {
-      const url = editingLimit ? `/api/fee-limits/limits/${editingLimit.id}` : '/api/fee-limits/limits';
+      const url = editingLimit ? createApiUrl(`/fee-limits/limits/${editingLimit.id}`) : createApiUrl('/fee-limits/limits');
       const method = editingLimit ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -162,7 +162,7 @@ export default function FeeLimits() {
 
   const handleDeleteFee = async (id: string) => {
     try {
-      const response = await fetch(`/api/fee-limits/fees/${id}`, { method: 'DELETE' });
+      const response = await fetch(createApiUrl(`/fee-limits/fees/${id}`), { method: 'DELETE' });
       if (response.ok) {
         fetchConfigurations();
       }
