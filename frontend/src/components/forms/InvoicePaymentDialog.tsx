@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -102,11 +103,11 @@ export default function InvoicePaymentDialog({ invoice, onPaymentRecorded, onClo
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/payment`, {
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoice.id}/payment`), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           amount: parseFloat(formData.amount),

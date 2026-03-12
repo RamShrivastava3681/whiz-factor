@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { HelpTrigger } from '@/components/DashboardHelpSystem';
 import { mockDashboardKPIs } from '@/data/demoData';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 
 interface DashboardKPIs {
   totalTransactions: { value: number; change: number; trend: 'up' | 'down' };
@@ -51,17 +52,13 @@ export default function Dashboard() {
     
     try {
       // Fetch KPI data
-      const metricsResponse = await fetch('http://localhost:3000/api/treasury/dashboard-metrics', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const metricsResponse = await fetch(createApiUrl('/treasury/dashboard-metrics'), {
+        headers: getApiHeaders()
       });
       
       // Fetch alerts data
-      const alertsResponse = await fetch('http://localhost:3000/api/treasury/dashboard-alerts', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const alertsResponse = await fetch(createApiUrl('/treasury/dashboard-alerts'), {
+        headers: getApiHeaders()
       });
       
       if (metricsResponse.ok) {

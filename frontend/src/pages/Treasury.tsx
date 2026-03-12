@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 
 interface SupplierPayment {
   supplierId: string;
@@ -148,10 +149,8 @@ export default function Treasury() {
 
   const fetchPayoutHistory = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/treasury/payout-history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/payout-history'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -167,10 +166,8 @@ export default function Treasury() {
     try {
       setIncomingLoading(true);
       
-      const response = await fetch('http://localhost:3000/api/treasury/incoming-payments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/incoming-payments'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -196,10 +193,8 @@ export default function Treasury() {
       setLoading(true);
       
       console.log('🔍 Fetching supplier payments from backend...');
-      const response = await fetch('http://localhost:3000/api/treasury/supplier-summary', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/supplier-summary'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -229,10 +224,8 @@ export default function Treasury() {
       setOpenInvoicesLoading(true);
       
       console.log('🔍 Fetching open invoices from backend...');
-      const response = await fetch('http://localhost:3000/api/treasury/open-invoices', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/open-invoices'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -260,11 +253,9 @@ export default function Treasury() {
     try {
       setProcessing(invoiceId);
       
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoiceId}`, {
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoiceId}`), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+        headers: getApiHeaders()
       });
 
       if (response.ok) {
@@ -312,11 +303,11 @@ export default function Treasury() {
       console.log('Sending payout data:', payoutData);
       console.log('Selected payment:', selectedPayment);
       
-      const response = await fetch('http://localhost:3000/api/treasury/payout', {
+      const response = await fetch(createApiUrl('/treasury/payout'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payoutData)
       });
@@ -372,10 +363,8 @@ export default function Treasury() {
       
       console.log(`Using payout ID: ${actualPayoutId}`);
       
-      const response = await fetch(`http://localhost:3000/api/treasury/payout/${actualPayoutId}/acknowledgement`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl(`/treasury/payout/${actualPayoutId}/acknowledgement`), {
+        headers: getApiHeaders()
       });
       
       console.log(`Response status: ${response.status}`);
@@ -427,11 +416,11 @@ export default function Treasury() {
       setProcessing(selectedIncomingPayment.id);
       setReserveConfirmationOpen(false);
       
-      const response = await fetch('http://localhost:3000/api/treasury/pay-reserve', {
+      const response = await fetch(createApiUrl('/treasury/pay-reserve'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           incomingPaymentId: selectedIncomingPayment.id,

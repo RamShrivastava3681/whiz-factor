@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Download, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { createApiUrl } from '@/config/api';
 
 interface NOAData {
   noaData: {
@@ -143,7 +144,7 @@ export function NOAPage() {
   const loadNOAData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/noa/${token}`);
+      const response = await fetch(createApiUrl(`/noa/${token}`));
       const data = await response.json();
 
       if (!response.ok) {
@@ -179,7 +180,7 @@ export function NOAPage() {
     try {
       setSubmitting(true);
       
-      const response = await fetch(`http://localhost:3000/api/noa/${token}/sign`, {
+      const response = await fetch(createApiUrl(`/noa/${token}/sign`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -213,7 +214,7 @@ export function NOAPage() {
 
   const handleDownloadPDF = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/noa/${token}/pdf`);
+      const response = await fetch(createApiUrl(`/noa/${token}/pdf`));
       
       if (!response.ok) {
         throw new Error('Failed to generate PDF');

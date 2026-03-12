@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -51,10 +52,8 @@ export default function LateFeeHandlingDialog({
 
   const fetchSupplierDetails = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/entities/suppliers/${invoice.supplierId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl(`/entities/suppliers/${invoice.supplierId}`), {
+        headers: getApiHeaders()
       });
       const result = await response.json();
       if (result.success) {

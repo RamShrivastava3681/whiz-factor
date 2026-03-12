@@ -4,6 +4,7 @@ import { FileText, ArrowRight, Mail, Eye, CheckCircle, Clock } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 
 const statusLabels: Record<string, string> = {
   pending: 'Pending',
@@ -20,10 +21,8 @@ export function RecentTransactionsTable() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/transactions', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/transactions'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {

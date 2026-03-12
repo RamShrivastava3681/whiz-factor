@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { createApiUrl } from '@/config/api';
 
 interface Notification {
   id: string;
@@ -140,7 +141,10 @@ export function useNotifications() {
     fetchNotifications();
     
     // Set up WebSocket for real-time notifications
-    const wsUrl = `ws://localhost:3000/notifications`;
+    // Extract the base URL and create WebSocket URL
+    const baseUrl = createApiUrl('').replace('http://', '').replace('https://', '').replace('/api', '');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${baseUrl}/notifications`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {

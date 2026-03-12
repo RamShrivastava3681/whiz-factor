@@ -14,7 +14,8 @@ import {
   Upload,
   Download,
   Trash
-} from 'lucide-react';import { mockBuyers, mockSuppliers } from '@/data/demoData';import { Button } from '@/components/ui/button';
+} from 'lucide-react';import { mockBuyers, mockSuppliers } from '@/data/demoData';
+import { createApiUrl, getApiHeaders } from '@/config/api';import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AddSupplierDialog } from '@/components/forms/AddSupplierDialog';
@@ -92,10 +93,8 @@ export default function Entities() {
     setLoading(true);
     try {
       console.log('🔍 Fetching entities from backend...');
-      const response = await fetch('http://localhost:3000/api/entities', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/entities'), {
+        headers: getApiHeaders()
       });
       
       console.log('📡 API Response status:', response.status, response.ok);
@@ -279,11 +278,9 @@ export default function Entities() {
     try {
       console.log('🗑️ Deleting entity:', entityToDelete.name, 'ID:', entityToDelete.id);
       
-      const response = await fetch(`http://localhost:3000/api/entities/${entityToDelete.id}`, {
+      const response = await fetch(createApiUrl(`/entities/${entityToDelete.id}`), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+        headers: getApiHeaders()
       });
       
       console.log('📡 Delete response status:', response.status, response.ok);

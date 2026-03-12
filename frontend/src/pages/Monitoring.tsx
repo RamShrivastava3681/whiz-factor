@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import InvoicePaymentDialog from '@/components/forms/InvoicePaymentDialog';
 import InvoiceClosureDialog from '@/components/forms/InvoiceClosureDialog';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 
 interface TransactionMonitoring {
   id: string;
@@ -171,10 +172,8 @@ export default function Monitoring() {
   const loadClosedInvoices = async () => {
     setInvoicesLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/treasury/closed-invoices', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/closed-invoices'), {
+        headers: getApiHeaders()
       });
 
       if (response.ok) {
@@ -200,10 +199,8 @@ export default function Monitoring() {
     try {
       console.log(`Attempting to download closure report for invoice: ${invoiceId}`);
       
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoiceId}/closure-report`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoiceId}/closure-report`), {
+        headers: getApiHeaders()
       });
       
       console.log(`Response status: ${response.status}`);
@@ -247,10 +244,8 @@ export default function Monitoring() {
   const loadOpenInvoices = async () => {
     setInvoicesLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/treasury/open-invoices', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/open-invoices'), {
+        headers: getApiHeaders()
       });
 
       if (response.ok) {
@@ -298,11 +293,11 @@ export default function Monitoring() {
 
   const handleSendToTreasury = async (invoice: OpenInvoice) => {
     try {
-      const response = await fetch('http://localhost:3000/api/monitoring/send-to-treasury', {
+      const response = await fetch(createApiUrl('/monitoring/send-to-treasury'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           invoiceId: invoice.id,
@@ -375,10 +370,8 @@ export default function Monitoring() {
     
     try {
       // Fetch real transactions data from backend
-      const transactionsResponse = await fetch('http://localhost:3000/api/transactions', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const transactionsResponse = await fetch(createApiUrl('/transactions'), {
+        headers: getApiHeaders()
       });
 
       let transactions = [];

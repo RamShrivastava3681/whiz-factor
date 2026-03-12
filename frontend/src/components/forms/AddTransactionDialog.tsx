@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 
 interface AddTransactionDialogProps {
   open: boolean;
@@ -255,10 +256,8 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
   const fetchEntities = async () => {
     try {
       setLoadingEntities(true);
-      const response = await fetch('http://localhost:3000/api/entities', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/entities'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -761,11 +760,11 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       console.log('Selected Buyer:', selectedBuyer);
       
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3000/api/transactions', {
+      const response = await fetch(createApiUrl('/transactions'), {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` 
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       });
@@ -786,7 +785,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       // Send NOA if requested
       if (formData.sendNOA && formData.buyerEmail) {
         try {
-          const noaResponse = await fetch('http://localhost:3000/api/noa/send', {
+          const noaResponse = await fetch(createApiUrl('/noa/send'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

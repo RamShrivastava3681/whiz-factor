@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +28,8 @@ export function EntityDetailsDialog({ open, onOpenChange, entity }: EntityDetail
     setLoadingBuyers(true);
     try {
       // Fetch all buyers and filter those that have this supplier assigned
-      const response = await fetch('http://localhost:3000/api/entities/buyers/list', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/entities/buyers/list'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {

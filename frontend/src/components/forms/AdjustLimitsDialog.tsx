@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -105,11 +106,11 @@ export function AdjustLimitsDialog({ open, onOpenChange, entity, onSuccess }: Ad
         updatedAt: new Date().toISOString()
       };
 
-      const response = await fetch(`http://localhost:3000/api/entities/${entity.id}`, {
+      const response = await fetch(createApiUrl(`/entities/${entity.id}`), {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updateData)
       });

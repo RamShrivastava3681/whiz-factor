@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -99,10 +100,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/entities/suppliers/list', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/entities/suppliers/list'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -175,11 +174,11 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       ), 0);
       
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3000/api/entities', {
+      const response = await fetch(createApiUrl('/entities'), {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` 
+        headers: {
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...formData,

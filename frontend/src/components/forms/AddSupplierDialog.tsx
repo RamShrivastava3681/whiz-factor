@@ -1,3 +1,4 @@
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import React, { useState } from 'react';
 import { AddSupplierForm, SupplierFormData } from './AddSupplierForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,11 +15,11 @@ export function AddSupplierDialog({ open, onOpenChange }: AddSupplierDialogProps
       console.log('Supplier data:', data);
       
       // Send the data to the backend API
-      const response = await fetch('http://localhost:3000/api/entities', {
+      const response = await fetch(createApiUrl('/entities'), {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}` 
+        headers: {
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...data,

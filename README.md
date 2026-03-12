@@ -32,7 +32,7 @@ npm run dev
 ```
 
 This will start:
-- Backend API server on `http://localhost:3000`
+- Backend API server on `http://localhost:6767`
 - Frontend development server on `http://localhost:8080`
 
 ### Individual Commands
@@ -106,7 +106,7 @@ npm run start:backend
    - Hot reload enabled for instant feedback
 
 3. **Backend API Development:**
-   - API available at `http://localhost:3000`
+   - API available at `http://localhost:6767`
    - Auto-restart on file changes
    - MongoDB connection required
 
@@ -131,12 +131,12 @@ npm run start:backend
 
 ### Frontend (`/frontend/.env`)
 ```
-VITE_API_BASE_URL=http://localhost:3000
+VITE_API_BASE_URL=http://localhost:6767
 ```
 
 ### Backend (`/backend/.env`)
 ```
-PORT=3000
+PORT=6767
 MONGODB_URI=mongodb://localhost:27017/whizunik-factoring
 JWT_SECRET=your-super-secret-jwt-key
 NODE_ENV=development

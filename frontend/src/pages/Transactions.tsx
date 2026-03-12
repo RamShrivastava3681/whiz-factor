@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AddTransactionDialog } from '@/components/forms/AddTransactionDialog';
 import { mockTransactions } from '@/data/demoData';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -32,11 +33,9 @@ export default function Transactions() {
     try {
       setDeleteLoading(transactionId);
       
-      const response = await fetch(`http://localhost:3000/api/transactions/${transactionId}`, {
+      const response = await fetch(createApiUrl(`/transactions/${transactionId}`), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+        headers: getApiHeaders()
       });
       
       if (response.ok) {
@@ -69,10 +68,8 @@ export default function Transactions() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/transactions', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/transactions'), {
+        headers: getApiHeaders()
       });
       
       if (response.ok) {

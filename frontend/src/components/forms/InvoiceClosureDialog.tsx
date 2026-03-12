@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { XCircle, AlertTriangle, CheckCircle, Clock, DollarSign, TrendingUp, AlertCircle, FileText, Users2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createApiUrl, getApiHeaders } from '@/config/api';
 import { format } from 'date-fns';
 import LateFeeHandlingDialog from './LateFeeHandlingDialog';
 
@@ -62,10 +63,8 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
   const fetchClosureReport = async () => {
     setLoadingReport(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/closure-report`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoice.id}/closure-report`), {
+        headers: getApiHeaders()
       });
       const result = await response.json();
       if (result.success) {
@@ -87,11 +86,11 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
 
     setReleasingReserves(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/release-reserves`, {
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoice.id}/release-reserves`), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           notes: formData.closureNotes || 'Reserves released via closure dialog'
@@ -123,10 +122,8 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
 
   const fetchReserves = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/treasury/reserves', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl('/treasury/reserves'), {
+        headers: getApiHeaders()
       });
       const result = await response.json();
       if (result.success) {
@@ -141,10 +138,8 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
     try {
       console.log(`Attempting to download closure report for invoice: ${invoiceId}`);
       
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoiceId}/closure-report`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoiceId}/closure-report`), {
+        headers: getApiHeaders()
       });
       
       console.log(`Response status: ${response.status}`);
@@ -200,11 +195,11 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
   const handleLateFeeConfirm = async (option: 'add_to_invoice' | 'cut_from_reserves', returnReserves?: boolean) => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/close`, {
+      const response = await fetch(createApiUrl(`/treasury/open-invoices/${invoice.id}/close`), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           closureNotes: formData.closureNotes,
@@ -263,11 +258,11 @@ export default function InvoiceClosureDialog({ invoice, onInvoiceClosed, onClose
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/treasury/open-invoices/${invoice.id}/close`, {
+      const response = await fetch(createApiUrl('/treasury/reserves'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          ...getApiHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           closureNotes: formData.closureNotes,
