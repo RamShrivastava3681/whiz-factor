@@ -19,7 +19,7 @@ export function useNotifications() {
   // Fetch notifications from API
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications');
+      const response = await fetch(createApiUrl('/notifications'));
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -65,7 +65,7 @@ export function useNotifications() {
   // Mark notification as read
   const markAsRead = async (notificationId: string) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(createApiUrl(`/notifications/${notificationId}/read`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -92,7 +92,7 @@ export function useNotifications() {
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications/mark-all-read', {
+      const response = await fetch(createApiUrl('/notifications/mark-all-read'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -141,10 +141,9 @@ export function useNotifications() {
     fetchNotifications();
     
     // Set up WebSocket for real-time notifications
-    // Extract the base URL and create WebSocket URL
-    const baseUrl = createApiUrl('').replace('http://', '').replace('https://', '').replace('/api', '');
+    // Create WebSocket URL based on current domain
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${baseUrl}/notifications`;
+    const wsUrl = `${protocol}//${window.location.host}/notifications`;
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {

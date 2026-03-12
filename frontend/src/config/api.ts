@@ -19,17 +19,25 @@ const getApiBaseUrl = (): string => {
     return 'http://localhost:6767';
   }
   
-  // Production default (can be overridden with VITE_API_BASE_URL)
-  return 'http://localhost:6767';
+  // Production default (relative URL works with Nginx proxy)
+  return '/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
 
 // Helper function to create full API URLs
 export const createApiUrl = (endpoint: string): string => {
-  // Ensure endpoint starts with /api if not already included
+  const baseUrl = API_BASE_URL;
+  
+  // If base URL already includes /api, don't add it again
+  if (baseUrl === '/api' || baseUrl.endsWith('/api')) {
+    // For production with base URL '/api', just append the endpoint
+    return endpoint.startsWith('/') ? `${baseUrl}${endpoint}` : `${baseUrl}/${endpoint}`;
+  }
+  
+  // For development with full localhost URL
   const normalizedEndpoint = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
-  return `${API_BASE_URL}${normalizedEndpoint}`;
+  return `${baseUrl}${normalizedEndpoint}`;
 };
 
 // Default headers for API requests
