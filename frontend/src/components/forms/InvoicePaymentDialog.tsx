@@ -318,7 +318,13 @@ export default function InvoicePaymentDialog({ invoice, onPaymentRecorded, onClo
                         )}
                       </div>
                       <div className="text-sm text-gray-600">
-                        Paid on {format(new Date(payment.paidAt), 'MMM dd, yyyy')} by {payment.paidBy}
+                        Paid on {(() => {
+                          try {
+                            return payment.paidAt ? format(new Date(payment.paidAt), 'MMM dd, yyyy') : 'Unknown date';
+                          } catch (error) {
+                            return formatDate(payment.paidAt);
+                          }
+                        })()} by {payment.paidBy}
                       </div>
                       {payment.notes && (
                         <div className="text-sm text-gray-500 mt-1">{payment.notes}</div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Calendar, FileText, Play, Eye, Settings, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { mockReports } from '@/data/demoData';
 import { createApiUrl } from '@/config/api';
+import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -472,7 +473,7 @@ export default function Reports() {
                         <Badge variant="outline">{report.outputFormat.toUpperCase()}</Badge>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {report.lastRun ? new Date(report.lastRun).toLocaleDateString() : 'Never'}
+                        {report.lastRun ? formatDate(report.lastRun) : 'Never'}
                       </TableCell>
                       <TableCell>
                         <Badge variant={report.isActive ? 'default' : 'secondary'}>

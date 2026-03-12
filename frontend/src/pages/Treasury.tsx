@@ -871,7 +871,7 @@ export default function Treasury() {
                         <p className="font-medium">{payment.transactionCount} transactions</p>
                         {payment.lastTransactionDate && (
                           <p className="text-xs text-muted-foreground">
-                            Last: {new Date(payment.lastTransactionDate).toLocaleDateString()}
+                            Last: {formatDate(payment.lastTransactionDate)}
                           </p>
                         )}
                       </div>
@@ -1217,7 +1217,7 @@ export default function Treasury() {
                             <div>
                               <p className="font-medium text-sm">{txn.invoiceNumber}</p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(txn.invoiceDate).toLocaleDateString()}
+                                {formatDate(txn.invoiceDate)}
                               </p>
                             </div>
                           </TableCell>

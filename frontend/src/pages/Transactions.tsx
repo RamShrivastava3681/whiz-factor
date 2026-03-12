@@ -360,7 +360,7 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(transaction.createdAt).toLocaleDateString()}
+                        {formatDate(transaction.createdAt)}
                       </p>
                     </TableCell>
                     <TableCell className="text-right">

@@ -292,7 +292,7 @@ export function NOAPage() {
               </h1>
               <p className="text-lg text-gray-700 mb-6">
                 Thank you. The Invoice Verification Letter has been successfully executed on{' '}
-                {new Date(signedTimestamp).toLocaleDateString()} at{' '}
+                {formatDate(signedTimestamp)} at{' '}
                 {new Date(signedTimestamp).toLocaleTimeString()}.
               </p>
               
@@ -359,7 +359,7 @@ export function NOAPage() {
 
         {/* Document Details */}
         <div className="mb-8 space-y-2">
-          <p><span className="font-semibold">Date:</span> {new Date().toLocaleDateString()}</p>
+          <p><span className="font-semibold">Date:</span> {formatDate(new Date())}</p>
           <p><span className="font-semibold">Our Reference:</span> {referenceNumber}</p>
           <p><span className="font-semibold">Invoice Verification Letter No.:</span> IVL-{noaData.transaction.transactionId}</p>
         </div>
@@ -492,7 +492,7 @@ export function NOAPage() {
                 </div>
 
                 <p className="text-sm text-gray-600">
-                  <strong>Date:</strong> {new Date().toLocaleDateString()}
+                  <strong>Date:</strong> {formatDate(new Date())}
                 </p>
 
                 <Button

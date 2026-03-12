@@ -888,7 +888,7 @@ export default function Monitoring() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(transaction.lastUpdated).toLocaleDateString()}
+                        {formatDate(transaction.lastUpdated)}
                       </TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm">
@@ -1125,8 +1125,8 @@ export default function Monitoring() {
                           <TableCell>
                             <div className="text-sm">
                               {invoice.paymentHistory && invoice.paymentHistory.length > 0 
-                                ? new Date(invoice.paymentHistory[invoice.paymentHistory.length - 1].paidAt).toLocaleDateString()
-                                : new Date(invoice.createdAt).toLocaleDateString()
+                                ? formatDate(invoice.paymentHistory[invoice.paymentHistory.length - 1].paidAt)
+                                : formatDate(invoice.createdAt)
                               }
                             </div>
                           </TableCell>
@@ -1312,7 +1312,7 @@ export default function Monitoring() {
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              {invoice.closedAt ? new Date(invoice.closedAt).toLocaleDateString() : 'N/A'}
+                              {invoice.closedAt ? formatDate(invoice.closedAt) : 'N/A'}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1330,7 +1330,7 @@ export default function Monitoring() {
                                     `Supplier: ${invoice.supplierName}`,
                                     `Amount: $${invoice.invoiceAmount?.toLocaleString() || 'N/A'}`,
                                     `Paid: $${invoice.paidAmount?.toLocaleString() || 'N/A'}`,
-                                    `Closed Date: ${invoice.closedAt ? new Date(invoice.closedAt).toLocaleDateString() : 'N/A'}`,
+                                    `Closed Date: ${invoice.closedAt ? formatDate(invoice.closedAt) : 'N/A'}`,
                                     `Status: ${invoice.status.toUpperCase()}`,
                                     invoice.lateFees ? `Late Fees: $${(invoice.lateFees || 0).toLocaleString()}` : null,
                                     invoice.closureNotes ? `Notes: ${invoice.closureNotes}` : null
