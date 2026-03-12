@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings2, Plus, Edit, Trash2, Calculator, AlertTriangle, CheckCircle } from 'lucide-react';
 import { mockFeeConfigurations, mockLimitConfigurations } from '@/data/demoData';
+import { createApiUrl } from '@/config/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -174,7 +175,7 @@ export default function FeeLimits() {
     if (!previewAmount) return;
     
     try {
-      const response = await fetch('/api/fee-limits/preview', {
+      const response = await fetch(createApiUrl('/fee-limits/preview'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

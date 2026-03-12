@@ -2,42 +2,30 @@
 // This file centralizes all API-related configuration
 
 // Get the API base URL from environment variables
-// In development, Vite exposes env vars that start with VITE_
-const getApiBaseUrl = (): string => {
-  // Check if we're in development mode
-  const isDevelopment = import.meta.env.MODE === 'development';
-  
-  // Use environment variable if available, otherwise fallback to development default
-  const envApiUrl = import.meta.env.VITE_API_BASE_URL;
-  
-  if (envApiUrl) {
-    return envApiUrl;
-  }
-  
-  // Development defaults
-  if (isDevelopment) {
-    return 'http://localhost:6767';
-  }
-  
-  // Production default (relative URL works with Nginx proxy)
-  return '/api';
-};
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-export const API_BASE_URL = getApiBaseUrl();
+// WebSocket URL configuration
+export const WS_BASE_URL = import.meta.env.VITE_WS_URL || "/notifications";
 
 // Helper function to create full API URLs
 export const createApiUrl = (endpoint: string): string => {
-  const baseUrl = API_BASE_URL;
+  // Ensure endpoint starts with / for proper concatenation
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${normalizedEndpoint}`;
+};
+
+// Helper function to create WebSocket URLs
+export const createWebSocketUrl = (): string => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   
-  // If base URL already includes /api, don't add it again
-  if (baseUrl === '/api' || baseUrl.endsWith('/api')) {
-    // For production with base URL '/api', just append the endpoint
-    return endpoint.startsWith('/') ? `${baseUrl}${endpoint}` : `${baseUrl}/${endpoint}`;
+  // For development with full URL
+  if (import.meta.env.VITE_WS_URL?.includes('://')) {
+    return import.meta.env.VITE_WS_URL;
   }
   
-  // For development with full localhost URL
-  const normalizedEndpoint = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
-  return `${baseUrl}${normalizedEndpoint}`;
+  // For production with relative path
+  const wsPath = WS_BASE_URL;
+  return `${protocol}//${window.location.host}${wsPath}`;
 };
 
 // Default headers for API requests

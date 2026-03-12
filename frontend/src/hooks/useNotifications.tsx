@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { createApiUrl } from '@/config/api';
+import { createApiUrl, createWebSocketUrl } from '@/config/api';
 
 interface Notification {
   id: string;
@@ -141,9 +141,8 @@ export function useNotifications() {
     fetchNotifications();
     
     // Set up WebSocket for real-time notifications
-    // Create WebSocket URL based on current domain
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/notifications`;
+    // Create WebSocket URL based on environment configuration
+    const wsUrl = createWebSocketUrl();
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {

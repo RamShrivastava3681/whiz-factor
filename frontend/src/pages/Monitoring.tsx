@@ -503,7 +503,7 @@ export default function Monitoring() {
 
   const handleBulkResolve = async () => {
     try {
-      const response = await fetch('/api/monitoring/alerts/bulk-resolve', {
+      const response = await fetch(createApiUrl('/monitoring/alerts/bulk-resolve'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
